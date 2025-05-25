@@ -124,7 +124,30 @@ class InteractiveSpectroscopyApp:
     def _initialize_display(self):
         """Initialize the display with current data."""
         if self.spec is not None:
-            self._update_heatmap()
+            # build a nested Python list with None in place of NaN
+            z_clean = [
+                [None if np.isnan(val) else val for val in row]
+                for row in self.spec.z_matrix
+            ]
+            with self.fig_widget.batch_update():
+                self.fig_widget.data[1].x = self.spec.x_arr
+                self.fig_widget.data[1].y = self.spec.y_arr
+                self.fig_widget.data[1].z = z_clean
+
+                # compute half-cell widths
+                dx = float(self.spec.x_arr[1] - self.spec.x_arr[0])
+                dy = float(self.spec.y_arr[1] - self.spec.y_arr[0])
+                x0, x1 = self.spec.x_arr[0] - dx / 2, self.spec.x_arr[-1] + dx / 2
+                y0, y1 = self.spec.y_arr[0] - dy / 2, self.spec.y_arr[-1] + dy / 2
+
+                #  – main heatmap (row 2, col 1): lock both X and Y
+                self.fig_widget.update_xaxes(range=[x0, x1], row=2, col=1)
+                self.fig_widget.update_yaxes(range=[y0, y1], row=2, col=1)
+                #  – horizontal slice (row 1, col 1): lock X only
+                self.fig_widget.update_xaxes(range=[x0, x1], row=1, col=1)
+                #  – vertical slice (row 2, col 2): lock Y only
+                self.fig_widget.update_yaxes(range=[y0, y1], row=2, col=2)
+
             # Set initial slices to middle of the data
             mid_x = len(self.spec.x_arr) // 2
             mid_y = len(self.spec.y_arr) // 2
@@ -153,12 +176,15 @@ class InteractiveSpectroscopyApp:
         """Update the main heatmap with current spectroscopy data."""
         if self.spec is None:
             return
+        # build a nested Python list with None in place of NaN
+        z_clean = [
+            [None if np.isnan(val) else val for val in row]
+            for row in self.spec.z_matrix
+        ]
 
         with self.fig_widget.batch_update():
             # Update heatmap data
-            self.fig_widget.data[1].z = self.spec.z_matrix
-            self.fig_widget.data[1].x = self.spec.x_arr
-            self.fig_widget.data[1].y = self.spec.y_arr
+            self.fig_widget.data[1].z = z_clean
 
     def _update_horizontal_slice(self, y_idx: int):
         """Update the horizontal slice (top panel) at given y index."""
