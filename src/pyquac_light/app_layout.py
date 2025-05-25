@@ -200,7 +200,7 @@ def build_interface():
         layout=Layout(width="1000px", height="30px"),
     )
     footer = HBox(
-        [Label("Picked Points:"), coord_display],
+        [Label("Points:"), coord_display],
         layout=Layout(padding="5px", height="40px", align_items="center"),
     )
 

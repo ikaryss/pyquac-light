@@ -27,12 +27,19 @@ class InteractiveSpectroscopyApp:
         self.timer = None
         self.update_running = False
 
+        # storage for user-picked points
+        self.picked_points: list[tuple[float, float]] = []
+
         # Create the UI components
         self.fig_widget = go.FigureWidget(create_figure())
         self.ui_container = build_interface()
 
         # Extract control widget references
         self._extract_control_references()
+        # set initial footer placeholder
+        self.coord_display.placeholder = (
+            "Point Pick Mode OFF - Click to view coordinates"
+        )
 
         # Set up event handlers
         self._setup_event_handlers()
@@ -55,6 +62,11 @@ class InteractiveSpectroscopyApp:
         self.show_crosshairs = interaction_controls.children[
             1
         ]  # Checkbox "Show click lines"
+
+        # ToggleButton for point-pick mode
+        self.point_pick_toggle = interaction_controls.children[0]
+        # Button to clear all picked points
+        self.clear_selection_btn = interaction_controls.children[2]
 
         # File controls (index 0 in accordion)
         file_controls = controls_accordion.children[0]
@@ -79,6 +91,8 @@ class InteractiveSpectroscopyApp:
 
         # Interaction controls
         self.show_crosshairs.observe(self._on_crosshair_toggle, names="value")
+        self.point_pick_toggle.observe(self._on_point_pick_toggle, names="value")
+        self.clear_selection_btn.on_click(self._on_clear_selection)
 
         # File operations
         self.load_csv_btn.on_click(self._on_load_csv)
@@ -100,6 +114,17 @@ class InteractiveSpectroscopyApp:
                 x_val = points.xs[0]
                 y_val = points.ys[0]
 
+                # If in point-pick mode, collect into list and show it
+                if self.point_pick_toggle.value:
+                    self.picked_points.append((x_val, y_val))
+                    self.coord_display.value = (
+                        f"X-Subset Collection ({len(self.picked_points)} points): "
+                        f"{np.round(self.picked_points, 3)}"
+                    )
+                else:
+                    # Otherwise just show the last-clicked coordinate
+                    self.coord_display.value = f"({x_val:.3f}, {y_val:.4e})"
+
                 # Find nearest grid indices
                 x_idx = self._find_nearest_x_index(x_val)
                 y_idx = self._find_nearest_y_index(y_val)
@@ -115,8 +140,9 @@ class InteractiveSpectroscopyApp:
                 # Update crosshairs if enabled
                 self._update_crosshairs(x_val, y_val)
 
-                # Update coordinate display
-                self._update_coordinate_display(x_val, y_val)
+                # Only update the detailed display when not picking points
+                if not self.point_pick_toggle.value:
+                    self._update_coordinate_display(x_val, y_val)
 
         # Attach to heatmap trace (index 1 in the figure)
         self.fig_widget.data[1].on_click(on_click)
@@ -342,6 +368,29 @@ class InteractiveSpectroscopyApp:
         """Handle fit curve visibility toggle."""
         if len(self.fig_widget.data) > 2:
             self.fig_widget.data[2].visible = change["new"]
+
+    def _on_point_pick_toggle(self, change):
+        """Toggle between coordinate-display mode and point-pick mode."""
+        if change["new"]:
+            # entering pick mode — show current count as placeholder
+            self.coord_display.value = ""
+            self.coord_display.placeholder = (
+                f"X-Subset Collection ({len(self.picked_points)} points): []"
+            )
+        else:
+            # exiting pick mode — revert to single-coordinate placeholder
+            self.coord_display.value = ""
+            self.coord_display.placeholder = (
+                "Point Pick Mode OFF - Click to view coordinates"
+            )
+
+    def _on_clear_selection(self, button):
+        """Clear all collected points."""
+        self.picked_points.clear()
+        if self.point_pick_toggle.value:
+            # update placeholder to reflect empty list
+            self.coord_display.value = ""
+            self.coord_display.placeholder = "X-Subset Collection (0 points): []"
 
     def _start_live_updates(self):
         """Start the live update timer."""
