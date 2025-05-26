@@ -31,7 +31,7 @@ def create_figure():
 
     # Add visualization traces
     fig.add_trace(
-        go.Scatter(x=None, y=None, mode="lines", name="horizontal"),
+        go.Scatter(x=None, y=None, mode="markers", name="horizontal"),
         row=1,
         col=1,
     )
@@ -65,7 +65,7 @@ def create_figure():
     )
 
     fig.add_trace(
-        go.Scatter(x=None, y=None, mode="lines", name="vertical"),
+        go.Scatter(x=None, y=None, mode="markers", name="vertical"),
         row=2,
         col=2,
     )
@@ -77,6 +77,7 @@ def create_figure():
     fig.update_yaxes(showticklabels=False, row=2, col=2)
     fig.update_yaxes(title_text="Mag, dB", row=1, col=1)
     fig.update_xaxes(title_text="Mag, dB", row=2, col=2)
+    fig.update_traces(showlegend=False)
 
     fig.update_layout(width=800, height=700, margin=dict(l=50, r=50, t=20, b=50))
 

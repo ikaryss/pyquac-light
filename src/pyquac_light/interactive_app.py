@@ -29,6 +29,8 @@ class InteractiveSpectroscopyApp:
 
         # storage for user-picked points
         self.picked_points: list[tuple[float, float]] = []
+        # storage for fitted ridge
+        self.fitted_ridge: Optional[np.poly1d] = None
 
         # Create the UI components
         self.fig_widget = go.FigureWidget(create_figure())
@@ -36,6 +38,11 @@ class InteractiveSpectroscopyApp:
 
         # Extract control widget references
         self._extract_control_references()
+
+        # Initially disable fit controls
+        self.fit_ridge_btn.disabled = True
+        self.show_fit_toggle.disabled = True
+
         # set initial footer placeholder
         self.coord_display.placeholder = (
             "Point Pick Mode OFF - Click to view coordinates"
@@ -59,10 +66,8 @@ class InteractiveSpectroscopyApp:
 
         # Interaction controls (index 1 in accordion)
         interaction_controls = controls_accordion.children[1]
-        self.show_crosshairs = interaction_controls.children[
-            1
-        ]  # Checkbox "Show click lines"
-
+        # Show clicked lines toggle
+        self.show_crosshairs = interaction_controls.children[1]
         # ToggleButton for point-pick mode
         self.point_pick_toggle = interaction_controls.children[0]
         # Button to clear all picked points
@@ -121,6 +126,8 @@ class InteractiveSpectroscopyApp:
                         f"X-Subset Collection ({len(self.picked_points)} points): "
                         f"{np.round(self.picked_points, 3)}"
                     )
+                    # enable fit button when points exist
+                    self.fit_ridge_btn.disabled = False
                 else:
                     # Otherwise just show the last-clicked coordinate
                     self.coord_display.value = f"({x_val:.3f}, {y_val:.4e})"
@@ -342,25 +349,22 @@ class InteractiveSpectroscopyApp:
 
     def _on_fit_ridge(self, button):
         """Handle ridge fitting."""
-        if self.spec is None:
-            print("No data loaded for fitting")
+        if self.spec is None or not self.picked_points:
             return
 
         try:
             degree = self.degree_input.value
-            ridge = self.spec.fit_ridge(deg=degree)
-
-            # Update the fit curve trace (index 2)
+            ridge = self.spec.fit_ridge(deg=degree, manual_peaks=self.picked_points)
+            self.fitted_ridge = ridge
             x_fit = self.spec.x_arr
             y_fit = ridge(x_fit)
-
             with self.fig_widget.batch_update():
                 self.fig_widget.data[2].x = x_fit
                 self.fig_widget.data[2].y = y_fit
                 self.fig_widget.data[2].visible = self.show_fit_toggle.value
-
+            # enable show-fit toggle
+            self.show_fit_toggle.disabled = False
             print(f"Ridge fitted with degree {degree}")
-
         except Exception as e:
             print(f"Ridge fitting failed: {e}")
 
@@ -372,13 +376,12 @@ class InteractiveSpectroscopyApp:
     def _on_point_pick_toggle(self, change):
         """Toggle between coordinate-display mode and point-pick mode."""
         if change["new"]:
-            # entering pick mode — show current count as placeholder
-            self.coord_display.value = ""
-            self.coord_display.placeholder = (
-                f"X-Subset Collection ({len(self.picked_points)} points): []"
-            )
+            # entering pick mode — display the existing list
+            display = f"X-Subset Collection ({len(self.picked_points)} points): {np.round(self.picked_points, 3)}"
+            self.coord_display.value = display
+            self.coord_display.placeholder = ""
         else:
-            # exiting pick mode — revert to single-coordinate placeholder
+            # exiting pick mode — clear list display and go back to single-coord mode
             self.coord_display.value = ""
             self.coord_display.placeholder = (
                 "Point Pick Mode OFF - Click to view coordinates"
