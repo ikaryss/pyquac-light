@@ -13,6 +13,7 @@ from ipywidgets import (
     ToggleButton,
     Accordion,
     Layout,
+    Textarea,
 )
 
 
@@ -164,6 +165,16 @@ def create_axis_settings():
                 [Label("Y Label"), Text(value="Y Axis", layout=AUTO_WIDTH)],
                 layout=CONTROL_LAYOUT,
             ),
+            VBox(
+                [
+                    Label("Save Parent Path"),
+                    Text(
+                        value="/home/controller/shared-data/Spectroscopy",
+                        placeholder="Absolute path, or leave empty → cwd",
+                        layout=AUTO_WIDTH,
+                    ),
+                ]
+            ),
         ],
         layout=CONTROL_LAYOUT,
     )
@@ -200,13 +211,22 @@ def build_interface():
         disabled=True,
         layout=Layout(width="1000px", height="30px"),
     )
-    footer = HBox(
-        [Label("Points:"), coord_display],
-        layout=Layout(padding="5px", height="40px", align_items="center"),
+    message_display = Text(
+        placeholder="Status messages will appear here",
+        disabled=True,
+        layout=Layout(width="1000px", height="30px"),
+    )
+
+    footer = VBox(
+        [
+            HBox([Label("Points:"), coord_display], layout=Layout(padding="2px")),
+            HBox([Label("Status:"), message_display], layout=Layout(padding="2px")),
+        ],
+        layout=Layout(height="100px", padding="10px"),
     )
 
     # Assemble final layout
     return VBox(
         [HBox([controls, Box(layout=Layout(width="10px")), fig_container]), footer],
-        layout=Layout(width="100%", height="800px"),
+        layout=Layout(width="100%", height="850px"),
     )

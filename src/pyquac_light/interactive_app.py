@@ -1,3 +1,6 @@
+import os
+import datetime
+import plotly.io as pio
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -54,6 +57,10 @@ class InteractiveSpectroscopyApp:
         # Initialize display
         self._initialize_display()
 
+    def _set_message(self, msg: str):
+        """Show a status message (overwriting any previous)."""
+        self.message_display.value = msg
+
     def _extract_control_references(self):
         """Extract references to specific control widgets from the UI."""
         # The controls are in an accordion (first child of the HBox)
@@ -86,7 +93,8 @@ class InteractiveSpectroscopyApp:
 
         # Footer coordinate display
         footer = self.ui_container.children[1]
-        self.coord_display = footer.children[1]  # Text widget for coordinates
+        self.coord_display = footer.children[0].children[1]
+        self.message_display = footer.children[1].children[1]
 
     def _setup_event_handlers(self):
         """Set up all event handlers for UI interactions."""
@@ -343,9 +351,9 @@ class InteractiveSpectroscopyApp:
         if self.spec is not None:
             # For now, save to a default filename
             self.spec.save_csv("spectroscopy_data.csv")
-            print("Data saved to spectroscopy_data.csv")
+            self._set_message("Data saved to spectroscopy_data.csv")
         else:
-            print("No data to save")
+            self._set_message("No data to save")
 
     def _on_fit_ridge(self, button):
         """Handle ridge fitting."""
@@ -364,9 +372,11 @@ class InteractiveSpectroscopyApp:
                 self.fig_widget.data[2].visible = self.show_fit_toggle.value
             # enable show-fit toggle
             self.show_fit_toggle.disabled = False
-            print(f"Ridge fitted with degree {degree}")
+            self._set_message(
+                f"Ridge fitted with degree {degree} and coefficients {ridge}"
+            )
         except Exception as e:
-            print(f"Ridge fitting failed: {e}")
+            self._set_message(f"Ridge fitting failed: {e}")
 
     def _on_show_fit_toggle(self, change):
         """Handle fit curve visibility toggle."""

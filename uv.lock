@@ -914,6 +914,15 @@ wheels = [
 ]
 
 [[package]]
+name = "kaleido"
+version = "0.1.0.post1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1e/82/153cdbaf2df0ad39198108063be111b105c46d60e9d0335e668d6af69a6b/kaleido-0.1.0.post1-py2.py3-none-win32.whl", hash = "sha256:636aedcd89f359f54687b4fe331776a7224f7c31c27d03230e4e13c7cf4cb66a", size = 53233834 },
+    { url = "https://files.pythonhosted.org/packages/41/90/51523adbedc808e03271c7448fd71da1660cc02603eaaf10b9ab4f102146/kaleido-0.1.0.post1-py2.py3-none-win_amd64.whl", hash = "sha256:2a942606a13c70dfd0a02e092ec140a1083e093ae06661c5e1b1179e477a9e44", size = 55954763 },
+]
+
+[[package]]
 name = "kiwisolver"
 version = "1.4.8"
 source = { registry = "https://pypi.org/simple" }
@@ -1620,6 +1629,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "ipywidgets" },
+    { name = "kaleido" },
     { name = "matplotlib" },
     { name = "numba" },
     { name = "numpy" },
@@ -1636,6 +1646,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "ipywidgets", specifier = ">=8.1.7" },
+    { name = "kaleido", specifier = "==0.1.0.post1" },
     { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "numba", specifier = ">=0.61.2" },
     { name = "numpy", specifier = ">=2.2.6" },
