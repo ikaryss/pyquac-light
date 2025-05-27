@@ -13,7 +13,6 @@ from ipywidgets import (
     ToggleButton,
     Accordion,
     Layout,
-    Textarea,
 )
 
 
@@ -173,7 +172,8 @@ def create_axis_settings():
                         placeholder="Absolute path, or leave empty → cwd",
                         layout=AUTO_WIDTH,
                     ),
-                ]
+                ],
+                layout=CONTROL_LAYOUT,
             ),
         ],
         layout=CONTROL_LAYOUT,

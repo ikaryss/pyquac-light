@@ -1,5 +1,6 @@
 import os
 import datetime
+from pathlib import Path
 import plotly.io as pio
 import numpy as np
 import plotly.graph_objects as go
@@ -61,6 +62,48 @@ class InteractiveSpectroscopyApp:
         """Show a status message (overwriting any previous)."""
         self.message_display.value = msg
 
+    def _get_save_directory(self) -> Path | None:
+        """
+        Read self.parent_path_input.value, normalize it, verify it exists (or
+        fall back to cwd if empty), then create /Date/ClassName subfolders.
+        Returns the full Path or None on error (with a message already set).
+        """
+        raw = self.parent_path_input.value.strip()
+
+        # 1) Determine the parent folder
+        if raw:
+            # Normalize mixed slashes → native OS separators
+            norm = os.path.normpath(raw)
+            p = Path(norm).expanduser()
+            # Resolve relative fragments (but do not require the folder to already
+            # exist if it's relative—resolve() will make it absolute)
+            try:
+                p = p.resolve(strict=False)
+            except Exception:
+                # fallback if resolve(strict=False) isn't available
+                p = p.absolute()
+            # Check existence & that it’s a directory
+            if not p.exists() or not p.is_dir():
+                self._set_message(f"❌ Parent folder does not exist: {raw}")
+                return None
+        else:
+            # Empty field → use current notebook directory
+            p = Path().cwd()
+
+        # 2) Build sub‐folders: dd-mm-yy / ClassName
+        today = datetime.date.today().strftime("%d-%m-%y")
+        clsname = type(self.spec).__name__ if self.spec else "Spectroscopy"
+        full_dir = p / today / clsname
+
+        # 3) Create them if needed
+        try:
+            full_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            self._set_message(f"❌ Could not create folder {full_dir}: {e}")
+            return None
+
+        return full_dir
+
     def _extract_control_references(self):
         """Extract references to specific control widgets from the UI."""
         # The controls are in an accordion (first child of the HBox)
@@ -84,6 +127,13 @@ class InteractiveSpectroscopyApp:
         file_controls = controls_accordion.children[0]
         self.load_csv_btn = file_controls.children[0]  # "Load CSV"
         self.save_csv_btn = file_controls.children[1]  # "Save CSV"
+        self.save_png_btn = file_controls.children[2]  # "Save PNG"
+        self.save_svg_btn = file_controls.children[3]  # "Save SVG"
+        self.save_html_btn = file_controls.children[4]  # "Save HTML"
+
+        # Settings
+        setting_controls = controls_accordion.children[4]
+        self.parent_path_input = setting_controls.children[2].children[1]
 
         # Fit controls (index 2 in accordion)
         fit_controls = controls_accordion.children[2]
@@ -110,6 +160,9 @@ class InteractiveSpectroscopyApp:
         # File operations
         self.load_csv_btn.on_click(self._on_load_csv)
         self.save_csv_btn.on_click(self._on_save_csv)
+        self.save_png_btn.on_click(self._on_save_png)
+        self.save_svg_btn.on_click(self._on_save_svg)
+        self.save_html_btn.on_click(self._on_save_html)
 
         # Fit controls
         self.fit_ridge_btn.on_click(self._on_fit_ridge)
@@ -348,12 +401,65 @@ class InteractiveSpectroscopyApp:
 
     def _on_save_csv(self, button):
         """Handle CSV saving."""
-        if self.spec is not None:
-            # For now, save to a default filename
-            self.spec.save_csv("spectroscopy_data.csv")
-            self._set_message("Data saved to spectroscopy_data.csv")
-        else:
-            self._set_message("No data to save")
+        if not self.spec:
+            self._set_message("❌ No data to save")
+            return
+        outdir = self._get_save_directory()
+        if outdir is None:
+            return
+        ts = datetime.datetime.now().strftime("%H-%M")
+        path = os.path.join(outdir, f"exp-{ts}.csv")
+        self.spec.save_csv(path)
+        self._set_message(f"✅ CSV saved to {path}")
+
+    def _on_save_png(self, button):
+        if not self.spec:
+            self._set_message("❌ No data to save")
+            return
+        outdir = self._get_save_directory()
+        if outdir is None:
+            return
+        ts = datetime.datetime.now().strftime("%H-%M")
+        path = os.path.join(outdir, f"exp-{ts}.png")
+        # only the heatmap trace: assume it’s trace index 1
+        fig = self.fig_widget
+        try:
+            fig.write_image(path, scale=2)
+            self._set_message(f"✅ PNG saved to {path}")
+        except Exception as e:
+            self._set_message(f"❌ PNG save failed: {e}")
+
+    def _on_save_svg(self, button):
+        if not self.spec:
+            self._set_message("❌ No data to save")
+            return
+        outdir = self._get_save_directory()
+        if outdir is None:
+            return
+        ts = datetime.datetime.now().strftime("%H-%M")
+        path = os.path.join(outdir, f"exp-{ts}.svg")
+        fig = self.fig_widget
+        try:
+            fig.write_image(path, scale=2)
+            self._set_message(f"✅ SVG saved to {path}")
+        except Exception as e:
+            self._set_message(f"❌ SVG save failed: {e}")
+
+    def _on_save_html(self, button):
+        if not self.spec:
+            self._set_message("❌ No data to save")
+            return
+        outdir = self._get_save_directory()
+        if outdir is None:
+            return
+        ts = datetime.datetime.now().strftime("%H-%M")
+        path = os.path.join(outdir, f"exp-{ts}.html")
+        fig = self.fig_widget
+        try:
+            fig.write_html(path, include_plotlyjs="cdn", full_html=True)
+            self._set_message(f"✅ HTML saved to {path}")
+        except Exception as e:
+            self._set_message(f"❌ HTML save failed: {e}")
 
     def _on_fit_ridge(self, button):
         """Handle ridge fitting."""
