@@ -155,7 +155,6 @@ def create_measurement_controls():
 
 def create_file_controls():
     """Create file operation buttons + extra-text field."""
-    load = Button(description="Load CSV", icon="folder-open")
     save_csv = Button(description="Save CSV", icon="save")
     save_png = Button(description="Save PNG", icon="file-image")
     save_svg = Button(description="Save SVG", icon="file-image")
@@ -176,7 +175,6 @@ def create_file_controls():
 
     return VBox(
         [
-            load,
             save_csv,
             save_png,
             save_svg,

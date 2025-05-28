@@ -9,7 +9,6 @@ import ipywidgets as widgets
 from ipywidgets import VBox, HBox, Layout
 import threading
 import time
-from typing import Optional
 
 from .datatools import Spectroscopy, RandomSpectroscopy
 from .app_layout import build_interface, create_figure
@@ -18,12 +17,12 @@ from .app_layout import build_interface, create_figure
 class InteractiveSpectroscopyApp:
     """Interactive spectroscopy application with live data visualization."""
 
-    def __init__(self, spec: Optional[Spectroscopy] = None):
+    def __init__(self, spec: Spectroscopy):
         """
         Initialize the interactive app.
 
         Args:
-            spec: Optional Spectroscopy instance. If None, starts with empty state.
+            spec: Spectroscopy instance with data to visualize and analyze.
         """
         self.spec = spec
         self.current_x_idx = 0
@@ -34,7 +33,7 @@ class InteractiveSpectroscopyApp:
         # storage for user-picked points
         self.picked_points: list[tuple[float, float]] = []
         # storage for fitted ridge
-        self.fitted_ridge: Optional[np.poly1d] = None
+        self.fitted_ridge: np.poly1d | None = None
 
         # Measurement state
         self.measurement_thread = None
@@ -100,7 +99,7 @@ class InteractiveSpectroscopyApp:
 
         # 2) Build sub‐folders: dd-mm-yy / ClassName
         today = datetime.date.today().strftime("%d-%m-%y")
-        clsname = type(self.spec).__name__ if self.spec else "Spectroscopy"
+        clsname = type(self.spec).__name__
         full_dir = p / today / clsname
 
         # 3) Create them if needed
@@ -153,14 +152,13 @@ class InteractiveSpectroscopyApp:
 
         # File controls (index 1 in accordion - was 0, +1 for measurement)
         file_controls = controls_accordion.children[1]
-        self.load_csv_btn = file_controls.children[0]  # "Load CSV"
-        self.save_csv_btn = file_controls.children[1]  # "Save CSV"
-        self.save_png_btn = file_controls.children[2]  # "Save PNG"
-        self.save_svg_btn = file_controls.children[3]  # "Save SVG"
-        self.save_html_btn = file_controls.children[4]  # "Save HTML"
-        extra_box = file_controls.children[5]
+        self.save_csv_btn = file_controls.children[0]  # "Save CSV"
+        self.save_png_btn = file_controls.children[1]  # "Save PNG"
+        self.save_svg_btn = file_controls.children[2]  # "Save SVG"
+        self.save_html_btn = file_controls.children[3]  # "Save HTML"
+        extra_box = file_controls.children[4]
         self.extra_filename_input = extra_box.children[1]
-        self.filename_example_label = file_controls.children[6]
+        self.filename_example_label = file_controls.children[5]
 
         # Settings (index 5 in accordion - was 4, +1 for measurement)
         setting_controls = controls_accordion.children[5]
@@ -204,7 +202,6 @@ class InteractiveSpectroscopyApp:
         self.clear_all_btn.on_click(self._on_clear_all)
 
         # File operations
-        self.load_csv_btn.on_click(self._on_load_csv)
         self.save_csv_btn.on_click(self._on_save_csv)
         self.save_png_btn.on_click(self._on_save_png)
         self.save_svg_btn.on_click(self._on_save_svg)
@@ -226,7 +223,7 @@ class InteractiveSpectroscopyApp:
         """Set up click event handling on the main heatmap."""
 
         def on_click(trace, points, selector):
-            if points.point_inds and self.spec is not None:
+            if points.point_inds:
                 # Get clicked coordinates
                 x_val = points.xs[0]
                 y_val = points.ys[0]
@@ -269,38 +266,37 @@ class InteractiveSpectroscopyApp:
 
     def _initialize_display(self):
         """Initialize the display with current data."""
-        if self.spec is not None:
-            # build a nested Python list with None in place of NaN
-            z_clean = [
-                [None if np.isnan(val) else val for val in row]
-                for row in self.spec.z_matrix
-            ]
-            with self.fig_widget.batch_update():
-                self.fig_widget.data[1].x = self.spec.x_arr
-                self.fig_widget.data[1].y = self.spec.y_arr
-                self.fig_widget.data[1].z = z_clean
+        # build a nested Python list with None in place of NaN
+        z_clean = [
+            [None if np.isnan(val) else val for val in row]
+            for row in self.spec.z_matrix
+        ]
+        with self.fig_widget.batch_update():
+            self.fig_widget.data[1].x = self.spec.x_arr
+            self.fig_widget.data[1].y = self.spec.y_arr
+            self.fig_widget.data[1].z = z_clean
 
-                # compute half-cell widths
-                dx = float(self.spec.x_arr[1] - self.spec.x_arr[0])
-                dy = float(self.spec.y_arr[1] - self.spec.y_arr[0])
-                x0, x1 = self.spec.x_arr[0] - dx / 2, self.spec.x_arr[-1] + dx / 2
-                y0, y1 = self.spec.y_arr[0] - dy / 2, self.spec.y_arr[-1] + dy / 2
+            # compute half-cell widths
+            dx = float(self.spec.x_arr[1] - self.spec.x_arr[0])
+            dy = float(self.spec.y_arr[1] - self.spec.y_arr[0])
+            x0, x1 = self.spec.x_arr[0] - dx / 2, self.spec.x_arr[-1] + dx / 2
+            y0, y1 = self.spec.y_arr[0] - dy / 2, self.spec.y_arr[-1] + dy / 2
 
-                #  – main heatmap (row 2, col 1): lock both X and Y
-                self.fig_widget.update_xaxes(range=[x0, x1], row=2, col=1)
-                self.fig_widget.update_yaxes(range=[y0, y1], row=2, col=1)
-                #  – horizontal slice (row 1, col 1): lock X only
-                self.fig_widget.update_xaxes(range=[x0, x1], row=1, col=1)
-                #  – vertical slice (row 2, col 2): lock Y only
-                self.fig_widget.update_yaxes(range=[y0, y1], row=2, col=2)
+            #  – main heatmap (row 2, col 1): lock both X and Y
+            self.fig_widget.update_xaxes(range=[x0, x1], row=2, col=1)
+            self.fig_widget.update_yaxes(range=[y0, y1], row=2, col=1)
+            #  – horizontal slice (row 1, col 1): lock X only
+            self.fig_widget.update_xaxes(range=[x0, x1], row=1, col=1)
+            #  – vertical slice (row 2, col 2): lock Y only
+            self.fig_widget.update_yaxes(range=[y0, y1], row=2, col=2)
 
-            # Set initial slices to middle of the data
-            mid_x = len(self.spec.x_arr) // 2
-            mid_y = len(self.spec.y_arr) // 2
-            self.current_x_idx = mid_x
-            self.current_y_idx = mid_y
-            self._update_horizontal_slice(mid_y)
-            self._update_vertical_slice(mid_x)
+        # Set initial slices to middle of the data
+        mid_x = len(self.spec.x_arr) // 2
+        mid_y = len(self.spec.y_arr) // 2
+        self.current_x_idx = mid_x
+        self.current_y_idx = mid_y
+        self._update_horizontal_slice(mid_y)
+        self._update_vertical_slice(mid_x)
 
         # Start live updates if mode is Live
         if self.mode_toggle.value == "Live":
@@ -308,20 +304,14 @@ class InteractiveSpectroscopyApp:
 
     def _find_nearest_x_index(self, x_val: float) -> int:
         """Find the nearest x grid index for a given x value."""
-        if self.spec is None:
-            return 0
         return int(np.argmin(np.abs(self.spec.x_arr - x_val)))
 
     def _find_nearest_y_index(self, y_val: float) -> int:
         """Find the nearest y grid index for a given y value."""
-        if self.spec is None:
-            return 0
         return int(np.argmin(np.abs(self.spec.y_arr - y_val)))
 
     def _update_heatmap(self):
         """Update the main heatmap with current spectroscopy data."""
-        if self.spec is None:
-            return
         # build a nested Python list with None in place of NaN
         z_clean = [
             [None if np.isnan(val) else val for val in row]
@@ -334,9 +324,6 @@ class InteractiveSpectroscopyApp:
 
     def _update_horizontal_slice(self, y_idx: int):
         """Update the horizontal slice (top panel) at given y index."""
-        if self.spec is None:
-            return
-
         z_slice = self.spec.z_matrix[y_idx, :]
         # Mask out NaN values
         valid_mask = ~np.isnan(z_slice)
@@ -347,9 +334,6 @@ class InteractiveSpectroscopyApp:
 
     def _update_vertical_slice(self, x_idx: int):
         """Update the vertical slice (right panel) at given x index."""
-        if self.spec is None:
-            return
-
         z_slice = self.spec.z_matrix[:, x_idx]
         # Mask out NaN values
         valid_mask = ~np.isnan(z_slice)
@@ -360,7 +344,7 @@ class InteractiveSpectroscopyApp:
 
     def _update_crosshairs(self, x_val: float, y_val: float):
         """Update crosshair lines on the main plot."""
-        if not self.show_crosshairs.value or self.spec is None:
+        if not self.show_crosshairs.value:
             self._hide_crosshair_lines()
             return
 
@@ -410,7 +394,7 @@ class InteractiveSpectroscopyApp:
 
     def _update_measurement_button_states(self):
         """Update measurement button states based on current measurement status."""
-        self.full_measurement_btn.disabled = self.is_measuring or self.spec is None
+        self.full_measurement_btn.disabled = self.is_measuring
         self._update_corridor_measurement_state()
         self.stop_btn.disabled = not self.is_measuring
 
@@ -531,24 +515,15 @@ class InteractiveSpectroscopyApp:
         """Handle crosshair visibility toggle."""
         if change["new"]:
             # Show crosshairs at current position
-            if self.spec is not None:
-                x_val = self.spec.x_arr[self.current_x_idx]
-                y_val = self.spec.y_arr[self.current_y_idx]
-                self._show_crosshair_lines(x_val, y_val)
+            x_val = self.spec.x_arr[self.current_x_idx]
+            y_val = self.spec.y_arr[self.current_y_idx]
+            self._show_crosshair_lines(x_val, y_val)
         else:
             # Hide crosshairs
             self._hide_crosshair_lines()
 
-    def _on_load_csv(self, button):
-        """Handle CSV loading."""
-        # For now, just a placeholder - would need file dialog in real implementation
-        print("Load CSV clicked - implement file dialog")
-
     def _on_save_csv(self, button):
         """Handle CSV saving."""
-        if not self.spec:
-            self._set_message("❌ No data to save")
-            return
         outdir = self._get_save_directory()
         if outdir is None:
             return
@@ -561,9 +536,6 @@ class InteractiveSpectroscopyApp:
         self._set_message(f"✅ CSV saved to {path}")
 
     def _on_save_png(self, button):
-        if not self.spec:
-            self._set_message("❌ No data to save")
-            return
         outdir = self._get_save_directory()
         if outdir is None:
             return
@@ -581,9 +553,6 @@ class InteractiveSpectroscopyApp:
             self._set_message(f"❌ PNG save failed: {e}")
 
     def _on_save_svg(self, button):
-        if not self.spec:
-            self._set_message("❌ No data to save")
-            return
         outdir = self._get_save_directory()
         if outdir is None:
             return
@@ -600,9 +569,6 @@ class InteractiveSpectroscopyApp:
             self._set_message(f"❌ SVG save failed: {e}")
 
     def _on_save_html(self, button):
-        if not self.spec:
-            self._set_message("❌ No data to save")
-            return
         outdir = self._get_save_directory()
         if outdir is None:
             return
@@ -636,7 +602,7 @@ class InteractiveSpectroscopyApp:
         # Clear all always enabled (or you could only enable if spec has any data)
 
     def _on_drop_points(self, button):
-        if not self.picked_points or self.spec is None:
+        if not self.picked_points:
             return
         xs = [x for x, y in self.picked_points]
         self.spec.drop(x=xs, y=None)
@@ -648,7 +614,7 @@ class InteractiveSpectroscopyApp:
         self._update_heatmap()
 
     def _on_clean_up(self, button):
-        if self.fitted_ridge is None or self.spec is None:
+        if self.fitted_ridge is None:
             return
         width = self.cleanup_width_input.value
         self.spec.clean_up(ridge=self.fitted_ridge, width_frac=width)
@@ -662,8 +628,6 @@ class InteractiveSpectroscopyApp:
         self._update_vertical_slice(self.current_x_idx)
 
     def _on_clear_all(self, button):
-        if self.spec is None:
-            return
         self.spec.clear()
         self._set_message("All data cleared")
         # also clear picks & ridge
@@ -677,7 +641,7 @@ class InteractiveSpectroscopyApp:
 
     def _on_fit_ridge(self, button):
         """Handle ridge fitting."""
-        if self.spec is None or not self.picked_points:
+        if not self.picked_points:
             return
 
         try:
@@ -777,13 +741,12 @@ class InteractiveSpectroscopyApp:
         return self.ui_container
 
 
-def launch_app(spec: Optional[Spectroscopy] = None) -> VBox:
+def launch_app(spec: Spectroscopy) -> VBox:
     """
     Launch the interactive spectroscopy application.
 
     Args:
-        spec: Optional Spectroscopy instance. If None, starts with empty state
-              and user can load data via "Load CSV" button.
+        spec: Spectroscopy instance with data to visualize and analyze.
 
     Returns:
         VBox widget ready for display in notebook
