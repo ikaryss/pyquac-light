@@ -71,6 +71,35 @@ def create_figure():
         col=2,
     )
 
+    fig.add_trace(
+        go.Scatter(
+            x=[],  # empty to start
+            y=[],
+            mode="lines",
+            line=dict(color="red", width=1, dash="dash"),
+            name="crosshair_h",
+            visible=False,
+            showlegend=False,
+        ),
+        row=2,
+        col=1,
+    )
+
+    # Pre-add vertical crosshair (invisible)
+    fig.add_trace(
+        go.Scatter(
+            x=[],
+            y=[],
+            mode="lines",
+            line=dict(color="red", width=1, dash="dash"),
+            name="crosshair_v",
+            visible=False,
+            showlegend=False,
+        ),
+        row=2,
+        col=1,
+    )
+
     # Configure axes
     fig.update_xaxes(title_text="X Axis", row=2, col=1)
     fig.update_yaxes(title_text="Y Axis", row=2, col=1)
@@ -81,6 +110,7 @@ def create_figure():
     fig.update_traces(showlegend=False)
 
     fig.update_layout(width=800, height=700, margin=dict(l=50, r=50, t=20, b=50))
+    fig.update_layout(uirevision="fixed")
 
     return fig
 
@@ -124,14 +154,35 @@ def create_measurement_controls():
 
 
 def create_file_controls():
-    """Create file operation buttons."""
+    """Create file operation buttons + extra-text field."""
+    load = Button(description="Load CSV", icon="folder-open")
+    save_csv = Button(description="Save CSV", icon="save")
+    save_png = Button(description="Save PNG", icon="file-image")
+    save_svg = Button(description="Save SVG", icon="file-image")
+    save_html = Button(description="Save HTML", icon="html5")
+
+    # extra-text input
+    extra_txt = Text(
+        value="",
+        placeholder="Optional: extra text",
+        layout=AUTO_WIDTH,
+    )
+    extra_box = VBox(
+        [Label("Filename suffix:"), extra_txt],
+        layout=CONTROL_LAYOUT,
+    )
+    # example label
+    example = Label("Example: exp-HH-MM", layout=Layout(padding="2px 5px"))
+
     return VBox(
         [
-            Button(description="Load CSV", icon="folder-open"),
-            Button(description="Save CSV", icon="save"),
-            Button(description="Save PNG", icon="file-image"),
-            Button(description="Save SVG", icon="file-image"),
-            Button(description="Save HTML", icon="html5"),
+            load,
+            save_csv,
+            save_png,
+            save_svg,
+            save_html,
+            extra_box,
+            example,
         ],
         layout=CONTROL_LAYOUT,
     )

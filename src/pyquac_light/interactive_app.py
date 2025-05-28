@@ -147,6 +147,9 @@ class InteractiveSpectroscopyApp:
         self.save_png_btn = file_controls.children[2]  # "Save PNG"
         self.save_svg_btn = file_controls.children[3]  # "Save SVG"
         self.save_html_btn = file_controls.children[4]  # "Save HTML"
+        extra_box = file_controls.children[5]
+        self.extra_filename_input = extra_box.children[1]
+        self.filename_example_label = file_controls.children[6]
 
         # Settings (index 5 in accordion - was 4, +1 for measurement)
         setting_controls = controls_accordion.children[5]
@@ -185,6 +188,7 @@ class InteractiveSpectroscopyApp:
         self.save_png_btn.on_click(self._on_save_png)
         self.save_svg_btn.on_click(self._on_save_svg)
         self.save_html_btn.on_click(self._on_save_html)
+        self.extra_filename_input.observe(self._on_extra_filename_change, names="value")
 
         # Fit controls
         self.fit_ridge_btn.on_click(self._on_fit_ridge)
@@ -205,10 +209,9 @@ class InteractiveSpectroscopyApp:
                 # If in point-pick mode, collect into list and show it
                 if self.point_pick_toggle.value:
                     self.picked_points.append((x_val, y_val))
-                    self.coord_display.value = (
-                        f"X-Subset Collection ({len(self.picked_points)} points): "
-                        f"{np.round(self.picked_points, 3)}"
-                    )
+                    formatted = [f"({x:.3f}, {y:.3e})" for x, y in self.picked_points]
+                    display = f"X-Subset Collection ({len(self.picked_points)} points): [{', '.join(formatted)}]"
+                    self.coord_display.value = display
                     # enable fit button when points exist
                     self.fit_ridge_btn.disabled = False
                     # Update corridor measurement availability
@@ -341,51 +344,34 @@ class InteractiveSpectroscopyApp:
         self._show_crosshair_lines(x_val, y_val)
 
     def _show_crosshair_lines(self, x_val: float, y_val: float):
-        """Show crosshair lines at the specified coordinates."""
-        # Check if crosshair traces already exist (traces 4 and 5)
-        if len(self.fig_widget.data) < 6:
-            # Add horizontal crosshair line
-            self.fig_widget.add_trace(
-                go.Scatter(
-                    x=self.spec.x_arr,
-                    y=[y_val] * len(self.spec.x_arr),
-                    mode="lines",
-                    line=dict(color="red", width=1, dash="dash"),
-                    name="crosshair_h",
-                    showlegend=False,
-                ),
-                row=2,
-                col=1,
-            )
-            # Add vertical crosshair line
-            self.fig_widget.add_trace(
-                go.Scatter(
-                    x=[x_val] * len(self.spec.y_arr),
-                    y=self.spec.y_arr,
-                    mode="lines",
-                    line=dict(color="red", width=1, dash="dash"),
-                    name="crosshair_v",
-                    showlegend=False,
-                ),
-                row=2,
-                col=1,
-            )
-        else:
-            # Update existing crosshair traces
-            with self.fig_widget.batch_update():
-                self.fig_widget.data[4].x = self.spec.x_arr
-                self.fig_widget.data[4].y = [y_val] * len(self.spec.x_arr)
-                self.fig_widget.data[5].x = [x_val] * len(self.spec.y_arr)
-                self.fig_widget.data[5].y = self.spec.y_arr
-                self.fig_widget.data[4].visible = True
-                self.fig_widget.data[5].visible = True
+        """Update the pre-added crosshair traces at the specified coordinates."""
+
+        # Compute the two lines
+        # Horizontal: across all x at fixed y_val
+        xs = list(self.spec.x_arr)
+        ys_h = [y_val] * len(xs)
+
+        # Vertical: across all y at fixed x_val
+        ys = list(self.spec.y_arr)
+        xs_v = [x_val] * len(ys)
+
+        # Update the two pre-added traces (indices 4 and 5)
+        with self.fig_widget.batch_update():
+            # trace 4 is the horizontal line
+            self.fig_widget.data[4].x = xs
+            self.fig_widget.data[4].y = ys_h
+            self.fig_widget.data[4].visible = True
+
+            # trace 5 is the vertical line
+            self.fig_widget.data[5].x = xs_v
+            self.fig_widget.data[5].y = ys
+            self.fig_widget.data[5].visible = True
 
     def _hide_crosshair_lines(self):
         """Hide crosshair lines."""
-        if len(self.fig_widget.data) >= 6:
-            with self.fig_widget.batch_update():
-                self.fig_widget.data[4].visible = False
-                self.fig_widget.data[5].visible = False
+        with self.fig_widget.batch_update():
+            self.fig_widget.data[4].visible = False
+            self.fig_widget.data[5].visible = False
 
     def _update_coordinate_display(self, x_val: float, y_val: float):
         """Update the coordinate display in the footer."""
@@ -542,7 +528,10 @@ class InteractiveSpectroscopyApp:
         if outdir is None:
             return
         ts = datetime.datetime.now().strftime("%H-%M")
-        path = os.path.join(outdir, f"exp-{ts}.csv")
+        extra = self.extra_filename_input.value.strip()
+        suffix = f"-{extra}" if extra else ""
+        fname = f"exp-{ts}{suffix}.csv"
+        path = os.path.join(outdir, fname)
         self.spec.save_csv(path)
         self._set_message(f"✅ CSV saved to {path}")
 
@@ -554,7 +543,10 @@ class InteractiveSpectroscopyApp:
         if outdir is None:
             return
         ts = datetime.datetime.now().strftime("%H-%M")
-        path = os.path.join(outdir, f"exp-{ts}.png")
+        extra = self.extra_filename_input.value.strip()
+        suffix = f"-{extra}" if extra else ""
+        fname = f"exp-{ts}{suffix}.png"
+        path = os.path.join(outdir, fname)
         # only the heatmap trace: assume it's trace index 1
         fig = self.fig_widget
         try:
@@ -571,7 +563,10 @@ class InteractiveSpectroscopyApp:
         if outdir is None:
             return
         ts = datetime.datetime.now().strftime("%H-%M")
-        path = os.path.join(outdir, f"exp-{ts}.svg")
+        extra = self.extra_filename_input.value.strip()
+        suffix = f"-{extra}" if extra else ""
+        fname = f"exp-{ts}{suffix}.svg"
+        path = os.path.join(outdir, fname)
         fig = self.fig_widget
         try:
             fig.write_image(path, scale=2)
@@ -587,13 +582,24 @@ class InteractiveSpectroscopyApp:
         if outdir is None:
             return
         ts = datetime.datetime.now().strftime("%H-%M")
-        path = os.path.join(outdir, f"exp-{ts}.html")
+        extra = self.extra_filename_input.value.strip()
+        suffix = f"-{extra}" if extra else ""
+        fname = f"exp-{ts}{suffix}.html"
+        path = os.path.join(outdir, fname)
         fig = self.fig_widget
         try:
             fig.write_html(path, include_plotlyjs="cdn", full_html=True)
             self._set_message(f"✅ HTML saved to {path}")
         except Exception as e:
             self._set_message(f"❌ HTML save failed: {e}")
+
+    def _on_extra_filename_change(self, change):
+        txt = change["new"].strip()
+        if txt:
+            example = f"exp-HH-MM-{txt}"
+        else:
+            example = "exp-HH-MM"
+        self.filename_example_label.value = f"Example: {example}"
 
     def _on_fit_ridge(self, button):
         """Handle ridge fitting."""
@@ -629,7 +635,8 @@ class InteractiveSpectroscopyApp:
         """Toggle between coordinate-display mode and point-pick mode."""
         if change["new"]:
             # entering pick mode — display the existing list
-            display = f"X-Subset Collection ({len(self.picked_points)} points): {np.round(self.picked_points, 3)}"
+            formatted = [f"({x:.3f}, {y:.3e})" for x, y in self.picked_points]
+            display = f"X-Subset Collection ({len(self.picked_points)} points): [{', '.join(formatted)}]"
             self.coord_display.value = display
             self.coord_display.placeholder = ""
         else:
