@@ -247,7 +247,8 @@ def create_fit_controls():
         [
             Label(value="Degree", layout=AUTO_WIDTH),
             IntText(value=2, layout=AUTO_WIDTH),
-            Button(description="Fit Ridge", icon="check", layout=AUTO_WIDTH),
+            Button(description="Manual Fit Ridge", icon="check", layout=AUTO_WIDTH),
+            Button(description="Auto Fit Ridge", icon="magic", layout=AUTO_WIDTH),
             ToggleButton(
                 description="Show Fit Curve", icon="chart-line", layout=AUTO_WIDTH
             ),

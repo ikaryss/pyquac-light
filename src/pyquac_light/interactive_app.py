@@ -52,6 +52,9 @@ class InteractiveSpectroscopyApp:
 
         # Initially disable fit controls
         self.fit_ridge_btn.disabled = True
+        self.auto_fit_ridge_btn.disabled = (
+            False  # Always enabled when data is available
+        )
         self.show_fit_toggle.disabled = True
 
         # set initial footer placeholder
@@ -174,8 +177,9 @@ class InteractiveSpectroscopyApp:
         # Fit controls (index 3 in accordion - was 2, +1 for measurement)
         fit_controls = controls_accordion.children[3]
         self.degree_input = fit_controls.children[1]  # IntText for degree
-        self.fit_ridge_btn = fit_controls.children[2]  # "Fit Ridge" button
-        self.show_fit_toggle = fit_controls.children[3]  # "Show Fit Curve" toggle
+        self.fit_ridge_btn = fit_controls.children[2]  # "Manual Fit Ridge" button
+        self.auto_fit_ridge_btn = fit_controls.children[3]  # "Auto Fit Ridge" button
+        self.show_fit_toggle = fit_controls.children[4]  # "Show Fit Curve" toggle
 
         # Footer coordinate display
         footer = self.ui_container.children[1]
@@ -210,6 +214,7 @@ class InteractiveSpectroscopyApp:
 
         # Fit controls
         self.fit_ridge_btn.on_click(self._on_fit_ridge)
+        self.auto_fit_ridge_btn.on_click(self._on_auto_fit_ridge)
         self.show_fit_toggle.observe(self._on_show_fit_toggle, names="value")
 
         # Axis‐label controls
@@ -664,6 +669,45 @@ class InteractiveSpectroscopyApp:
             self._update_data_mgmt_buttons()
         except Exception as e:
             self._set_message(f"Ridge fitting failed: {e}")
+
+    def _on_auto_fit_ridge(self, button):
+        """Handle automatic ridge fitting."""
+        try:
+            degree = self.degree_input.value
+
+            # Get x_subset from picked points if any (only x components)
+            x_subset = None
+            if self.picked_points:
+                x_subset = [point[0] for point in self.picked_points]
+
+            # Call fit_ridge without manual_peaks for automatic detection
+            ridge = self.spec.fit_ridge(deg=degree, x_subset=x_subset)
+            self.fitted_ridge = ridge
+
+            # Update the plot
+            x_fit = self.spec.x_arr
+            y_fit = ridge(x_fit)
+            with self.fig_widget.batch_update():
+                self.fig_widget.data[2].x = x_fit
+                self.fig_widget.data[2].y = y_fit
+                self.fig_widget.data[2].visible = self.show_fit_toggle.value
+
+            # enable show-fit toggle
+            self.show_fit_toggle.disabled = False
+            # Update corridor measurement availability
+            self._update_corridor_measurement_state()
+
+            subset_info = (
+                f" (x_subset: {len(x_subset)} points)"
+                if x_subset
+                else " (all x values)"
+            )
+            self._set_message(
+                f"Auto ridge fitted with degree {degree}{subset_info} and coefficients {ridge}"
+            )
+            self._update_data_mgmt_buttons()
+        except Exception as e:
+            self._set_message(f"Auto ridge fitting failed: {e}")
 
     def _on_show_fit_toggle(self, change):
         """Handle fit curve visibility toggle."""
