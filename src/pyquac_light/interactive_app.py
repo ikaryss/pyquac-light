@@ -164,6 +164,13 @@ class InteractiveSpectroscopyApp:
 
         # Settings (index 5 in accordion - was 4, +1 for measurement)
         setting_controls = controls_accordion.children[5]
+        # X‐Label text is in the first sub‐VBox
+        x_box = setting_controls.children[0]  # VBox([Label, Text])
+        self.x_label_input = x_box.children[1]  # the Text widget
+        # Y‐Label text is in the second sub‐VBox
+        y_box = setting_controls.children[1]
+        self.y_label_input = y_box.children[1]
+        # Parent‐path remains the third
         self.parent_path_input = setting_controls.children[2].children[1]
 
         # Fit controls (index 3 in accordion - was 2, +1 for measurement)
@@ -207,6 +214,10 @@ class InteractiveSpectroscopyApp:
         # Fit controls
         self.fit_ridge_btn.on_click(self._on_fit_ridge)
         self.show_fit_toggle.observe(self._on_show_fit_toggle, names="value")
+
+        # Axis‐label controls
+        self.x_label_input.observe(self._on_x_label_change, names="value")
+        self.y_label_input.observe(self._on_y_label_change, names="value")
 
         # Click interactions on the main heatmap
         self._setup_click_interactions()
@@ -722,6 +733,18 @@ class InteractiveSpectroscopyApp:
         self.fit_ridge_btn.disabled = True
         self._update_corridor_measurement_state()
         self._update_data_mgmt_buttons()
+
+    def _on_x_label_change(self, change):
+        new = change["new"]
+        # update the X‐axis title of the main heatmap (row 2, col 1)
+        with self.fig_widget.batch_update():
+            self.fig_widget.update_xaxes(title_text=new, row=2, col=1)
+
+    def _on_y_label_change(self, change):
+        new = change["new"]
+        # update the Y‐axis title of the main heatmap (row 2, col 1)
+        with self.fig_widget.batch_update():
+            self.fig_widget.update_yaxes(title_text=new, row=2, col=1)
 
     def _start_live_updates(self):
         """Start the live update timer."""
