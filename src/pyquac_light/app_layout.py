@@ -112,7 +112,7 @@ def create_measurement_controls():
             VBox(
                 [
                     Label("Sleep (ms)", layout=AUTO_WIDTH),
-                    IntText(value=1000, min=500, layout=AUTO_WIDTH),
+                    IntText(value=50, min=1, layout=AUTO_WIDTH),
                 ],
                 layout=Layout(padding="2px"),
             ),

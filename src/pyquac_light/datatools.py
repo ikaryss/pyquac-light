@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from time import perf_counter
+import time
 from typing import Iterable, List, Tuple
 import threading
 
@@ -397,13 +397,6 @@ class Spectroscopy:
 ################################################################################
 
 
-def busy_sleep(sec: float) -> None:
-    """Sub-millisecond sleep using a busy loop. Use sparingly (CPU intensive)."""
-    deadline = perf_counter() + sec
-    while perf_counter() < deadline:
-        pass
-
-
 class RandomSpectroscopy(Spectroscopy):
     def run_full_scan(
         self,
@@ -423,7 +416,7 @@ class RandomSpectroscopy(Spectroscopy):
                 break
             z = np.random.random()
             self.write(x, y, z)
-            busy_sleep(sleep)
+            time.sleep(sleep)
 
     def run_corridor_scan(
         self,
@@ -446,4 +439,4 @@ class RandomSpectroscopy(Spectroscopy):
                 break
             z = np.random.random()
             self.write(x, y, z)
-            busy_sleep(sleep)
+            time.sleep(sleep)
