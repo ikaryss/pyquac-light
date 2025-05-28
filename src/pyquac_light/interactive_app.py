@@ -48,6 +48,9 @@ class InteractiveSpectroscopyApp:
         # Extract control widget references
         self._extract_control_references()
 
+        # set initial enable/disable states
+        self._update_data_mgmt_buttons()
+
         # Initially disable fit controls
         self.fit_ridge_btn.disabled = True
         self.show_fit_toggle.disabled = True
@@ -133,12 +136,20 @@ class InteractiveSpectroscopyApp:
 
         # Interaction controls (index 2 in accordion - was 1, +1 for measurement)
         interaction_controls = controls_accordion.children[2]
-        # Show clicked lines toggle
         self.show_crosshairs = interaction_controls.children[1]
-        # ToggleButton for point-pick mode
         self.point_pick_toggle = interaction_controls.children[0]
-        # Button to clear all picked points
         self.clear_selection_btn = interaction_controls.children[2]
+        # index 4 = "Data Management" label (we can ignore)
+        # index 5 = drop_btn
+        # index 6 = cleanup_btn
+        # index 7 = width_input
+        # index 8 = clear_all_btn
+        self.drop_btn = interaction_controls.children[5]
+        self.cleanup_btn = interaction_controls.children[6]
+        # children[7] is the VBox([Label("Width"), FloatText])
+        width_box = interaction_controls.children[7]
+        self.cleanup_width_input = width_box.children[1]
+        self.clear_all_btn = interaction_controls.children[8]
 
         # File controls (index 1 in accordion - was 0, +1 for measurement)
         file_controls = controls_accordion.children[1]
@@ -181,6 +192,9 @@ class InteractiveSpectroscopyApp:
         self.show_crosshairs.observe(self._on_crosshair_toggle, names="value")
         self.point_pick_toggle.observe(self._on_point_pick_toggle, names="value")
         self.clear_selection_btn.on_click(self._on_clear_selection)
+        self.drop_btn.on_click(self._on_drop_points)
+        self.cleanup_btn.on_click(self._on_clean_up)
+        self.clear_all_btn.on_click(self._on_clear_all)
 
         # File operations
         self.load_csv_btn.on_click(self._on_load_csv)
@@ -601,6 +615,55 @@ class InteractiveSpectroscopyApp:
             example = "exp-HH-MM"
         self.filename_example_label.value = f"Example: {example}"
 
+    def _update_data_mgmt_buttons(self):
+        # Drop only if there are picked points
+        self.drop_btn.disabled = len(self.picked_points) == 0
+        # Clean-up only if a ridge is fitted
+        self.cleanup_btn.disabled = self.fitted_ridge is None
+        # Width input likewise only makes sense if there’s a ridge
+        self.cleanup_width_input.disabled = self.fitted_ridge is None
+        # Clear all always enabled (or you could only enable if spec has any data)
+
+    def _on_drop_points(self, button):
+        if not self.picked_points or self.spec is None:
+            return
+        xs = [x for x, y in self.picked_points]
+        self.spec.drop(x=xs, y=None)
+        self._set_message(f"Dropped {len(xs)} points")
+        # clear selection
+        self.picked_points.clear()
+        self.coord_display.value = ""
+        self._update_data_mgmt_buttons()
+        self._update_heatmap()
+
+    def _on_clean_up(self, button):
+        if self.fitted_ridge is None or self.spec is None:
+            return
+        width = self.cleanup_width_input.value
+        self.spec.clean_up(ridge=self.fitted_ridge, width_frac=width)
+        self._set_message(f"Cleaned up outside ±{width*100:.1f}% corridor")
+
+        # redraw everything
+        self._update_data_mgmt_buttons()
+        self._update_heatmap()
+        # ← refresh both slices so they no longer show dropped data:
+        self._update_horizontal_slice(self.current_y_idx)
+        self._update_vertical_slice(self.current_x_idx)
+
+    def _on_clear_all(self, button):
+        if self.spec is None:
+            return
+        self.spec.clear()
+        self._set_message("All data cleared")
+        # also clear picks & ridge
+        self.picked_points.clear()
+        self.fitted_ridge = None
+        self.coord_display.value = ""
+        self._update_data_mgmt_buttons()
+        self._update_heatmap()
+        self._update_horizontal_slice(self.current_y_idx)
+        self._update_vertical_slice(self.current_x_idx)
+
     def _on_fit_ridge(self, button):
         """Handle ridge fitting."""
         if self.spec is None or not self.picked_points:
@@ -623,6 +686,7 @@ class InteractiveSpectroscopyApp:
             self._set_message(
                 f"Ridge fitted with degree {degree} and coefficients {ridge}"
             )
+            self._update_data_mgmt_buttons()
         except Exception as e:
             self._set_message(f"Ridge fitting failed: {e}")
 
@@ -645,6 +709,7 @@ class InteractiveSpectroscopyApp:
             self.coord_display.placeholder = (
                 "Point Pick Mode OFF - Click to view coordinates"
             )
+        self._update_data_mgmt_buttons()
 
     def _on_clear_selection(self, button):
         """Clear all collected points."""
@@ -656,6 +721,7 @@ class InteractiveSpectroscopyApp:
         # Update button states
         self.fit_ridge_btn.disabled = True
         self._update_corridor_measurement_state()
+        self._update_data_mgmt_buttons()
 
     def _start_live_updates(self):
         """Start the live update timer."""

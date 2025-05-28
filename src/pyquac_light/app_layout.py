@@ -190,15 +190,54 @@ def create_file_controls():
 
 def create_interaction_controls():
     """Create interaction mode controls."""
+    pick_mode = ToggleButton(description="Point Pick Mode", layout=AUTO_WIDTH)
+    show_lines = Checkbox(
+        description="Show click lines",
+        style={"description_width": "initial"},
+        layout=AUTO_WIDTH,
+    )
+    clear_sel = Button(description="Clear Selection", icon="eraser", layout=AUTO_WIDTH)
+
+    # spacer
+    separator = Box(layout=Layout(height="10px"))
+
+    # --- new Data Management block ---
+    dm_label = Label("Data Management", layout=Layout(font_weight="bold"))
+    drop_btn = Button(description="Drop Picked Points", icon="trash", layout=AUTO_WIDTH)
+    cleanup_btn = Button(
+        description="Clean Up Corridor", icon="broom", layout=AUTO_WIDTH
+    )
+
+    # wrap Width exactly as in measurement section:
+    width_input = VBox(
+        [
+            Label("Width"),
+            FloatText(value=0.2, min=0.01, max=0.5, layout=AUTO_WIDTH),
+        ],
+        layout=CONTROL_LAYOUT,
+    )
+
+    clear_all_btn = Button(
+        description="Clear All Data",
+        icon="exclamation-triangle",
+        button_style="danger",
+        layout=AUTO_WIDTH,
+    )
+
     return VBox(
         [
-            ToggleButton(description="Point Pick Mode", layout=AUTO_WIDTH),
-            Checkbox(
-                description="Show click lines",
-                style={"description_width": "initial"},
-                layout=AUTO_WIDTH,
-            ),
-            Button(description="Clear Selection", icon="eraser", layout=AUTO_WIDTH),
+            # original controls
+            pick_mode,
+            show_lines,
+            clear_sel,
+            # break
+            separator,
+            # data-management controls, one per line
+            dm_label,
+            drop_btn,
+            cleanup_btn,
+            width_input,
+            clear_all_btn,
         ],
         layout=CONTROL_LAYOUT,
     )
