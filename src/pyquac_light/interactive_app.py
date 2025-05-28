@@ -11,7 +11,7 @@ import threading
 import time
 from typing import Optional
 
-from .datatools import Spectroscopy
+from .datatools import Spectroscopy, RandomSpectroscopy
 from .app_layout import build_interface, create_figure
 
 
@@ -35,6 +35,11 @@ class InteractiveSpectroscopyApp:
         self.picked_points: list[tuple[float, float]] = []
         # storage for fitted ridge
         self.fitted_ridge: Optional[np.poly1d] = None
+
+        # Measurement state
+        self.measurement_thread = None
+        self.stop_event = threading.Event()
+        self.is_measuring = False
 
         # Create the UI components
         self.fig_widget = go.FigureWidget(create_figure())
@@ -82,7 +87,7 @@ class InteractiveSpectroscopyApp:
             except Exception:
                 # fallback if resolve(strict=False) isn't available
                 p = p.absolute()
-            # Check existence & that it’s a directory
+            # Check existence & that it's a directory
             if not p.exists() or not p.is_dir():
                 self._set_message(f"❌ Parent folder does not exist: {raw}")
                 return None
@@ -109,13 +114,25 @@ class InteractiveSpectroscopyApp:
         # The controls are in an accordion (first child of the HBox)
         controls_accordion = self.ui_container.children[0].children[0]
 
-        # Performance controls (index 3 in accordion)
-        perf_controls = controls_accordion.children[3]
+        # Measurement controls (index 0 in accordion)
+        measurement_controls = controls_accordion.children[0]
+        self.full_measurement_btn = measurement_controls.children[0]
+        self.corridor_measurement_btn = measurement_controls.children[1]
+        self.width_input = measurement_controls.children[2].children[
+            1
+        ]  # FloatText for width
+        self.sleep_input = measurement_controls.children[4].children[
+            1
+        ]  # IntText for sleep
+        self.stop_btn = measurement_controls.children[6]
+
+        # Performance controls (index 4 in accordion - was 3, +1 for measurement)
+        perf_controls = controls_accordion.children[4]
         self.mode_toggle = perf_controls.children[0]  # ToggleButtons "Static"/"Live"
         self.update_interval = perf_controls.children[2]  # IntText for update ms
 
-        # Interaction controls (index 1 in accordion)
-        interaction_controls = controls_accordion.children[1]
+        # Interaction controls (index 2 in accordion - was 1, +1 for measurement)
+        interaction_controls = controls_accordion.children[2]
         # Show clicked lines toggle
         self.show_crosshairs = interaction_controls.children[1]
         # ToggleButton for point-pick mode
@@ -123,20 +140,20 @@ class InteractiveSpectroscopyApp:
         # Button to clear all picked points
         self.clear_selection_btn = interaction_controls.children[2]
 
-        # File controls (index 0 in accordion)
-        file_controls = controls_accordion.children[0]
+        # File controls (index 1 in accordion - was 0, +1 for measurement)
+        file_controls = controls_accordion.children[1]
         self.load_csv_btn = file_controls.children[0]  # "Load CSV"
         self.save_csv_btn = file_controls.children[1]  # "Save CSV"
         self.save_png_btn = file_controls.children[2]  # "Save PNG"
         self.save_svg_btn = file_controls.children[3]  # "Save SVG"
         self.save_html_btn = file_controls.children[4]  # "Save HTML"
 
-        # Settings
-        setting_controls = controls_accordion.children[4]
+        # Settings (index 5 in accordion - was 4, +1 for measurement)
+        setting_controls = controls_accordion.children[5]
         self.parent_path_input = setting_controls.children[2].children[1]
 
-        # Fit controls (index 2 in accordion)
-        fit_controls = controls_accordion.children[2]
+        # Fit controls (index 3 in accordion - was 2, +1 for measurement)
+        fit_controls = controls_accordion.children[3]
         self.degree_input = fit_controls.children[1]  # IntText for degree
         self.fit_ridge_btn = fit_controls.children[2]  # "Fit Ridge" button
         self.show_fit_toggle = fit_controls.children[3]  # "Show Fit Curve" toggle
@@ -148,6 +165,11 @@ class InteractiveSpectroscopyApp:
 
     def _setup_event_handlers(self):
         """Set up all event handlers for UI interactions."""
+        # Measurement controls
+        self.full_measurement_btn.on_click(self._on_full_measurement)
+        self.corridor_measurement_btn.on_click(self._on_corridor_measurement)
+        self.stop_btn.on_click(self._on_stop_measurement)
+
         # Performance controls
         self.mode_toggle.observe(self._on_mode_change, names="value")
         self.update_interval.observe(self._on_interval_change, names="value")
@@ -189,6 +211,8 @@ class InteractiveSpectroscopyApp:
                     )
                     # enable fit button when points exist
                     self.fit_ridge_btn.disabled = False
+                    # Update corridor measurement availability
+                    self._update_corridor_measurement_state()
                 else:
                     # Otherwise just show the last-clicked coordinate
                     self.coord_display.value = f"({x_val:.3f}, {y_val:.4e})"
@@ -367,6 +391,116 @@ class InteractiveSpectroscopyApp:
         """Update the coordinate display in the footer."""
         self.coord_display.value = f"({x_val:.3f}, {y_val:.3e})"
 
+    def _update_corridor_measurement_state(self):
+        """Update corridor measurement button state based on fitted ridge."""
+        self.corridor_measurement_btn.disabled = (
+            self.fitted_ridge is None or self.is_measuring
+        )
+
+    def _update_measurement_button_states(self):
+        """Update measurement button states based on current measurement status."""
+        self.full_measurement_btn.disabled = self.is_measuring or self.spec is None
+        self._update_corridor_measurement_state()
+        self.stop_btn.disabled = not self.is_measuring
+
+    # Measurement event handlers
+    def _on_full_measurement(self, button):
+        """Handle full measurement button click."""
+        if not isinstance(self.spec, RandomSpectroscopy):
+            self._set_message(
+                "❌ Full measurement requires RandomSpectroscopy instance"
+            )
+            return
+
+        # Get parameters
+        sleep_ms = self.sleep_input.value
+        sleep_sec = sleep_ms / 1000.0
+
+        # Get x_subset from picked points if any
+        x_subset = None
+        if self.picked_points:
+            x_subset = [point[0] for point in self.picked_points]
+
+        # Start measurement
+        self._start_measurement(
+            lambda: self.spec.run_full_scan(
+                sleep=sleep_sec, x_subset=x_subset, stop_event=self.stop_event
+            ),
+            "Full measurement",
+        )
+
+    def _on_corridor_measurement(self, button):
+        """Handle corridor measurement button click."""
+        if not isinstance(self.spec, RandomSpectroscopy):
+            self._set_message(
+                "❌ Corridor measurement requires RandomSpectroscopy instance"
+            )
+            return
+
+        if self.fitted_ridge is None:
+            self._set_message("❌ No fitted ridge available for corridor measurement")
+            return
+
+        # Get parameters
+        sleep_ms = self.sleep_input.value
+        sleep_sec = sleep_ms / 1000.0
+        width_frac = self.width_input.value
+
+        # Get x_subset from picked points if any
+        x_subset = None
+        if self.picked_points:
+            x_subset = [point[0] for point in self.picked_points]
+
+        # Start measurement
+        self._start_measurement(
+            lambda: self.spec.run_corridor_scan(
+                ridge=self.fitted_ridge,
+                width_frac=width_frac,
+                sleep=sleep_sec,
+                x_subset=x_subset,
+                stop_event=self.stop_event,
+            ),
+            "Corridor measurement",
+        )
+
+    def _on_stop_measurement(self, button):
+        """Handle stop measurement button click."""
+        self._stop_measurement()
+
+    def _start_measurement(self, measurement_func, measurement_name):
+        """Start a measurement in a separate thread."""
+        if self.is_measuring:
+            return
+
+        self.is_measuring = True
+        self.stop_event.clear()
+        self._update_measurement_button_states()
+        self._set_message(f"▶️ Starting {measurement_name}...")
+
+        def measurement_wrapper():
+            try:
+                measurement_func()
+                if not self.stop_event.is_set():
+                    self._set_message(f"✅ {measurement_name} completed successfully")
+                else:
+                    self._set_message(f"⏹️ {measurement_name} stopped by user")
+            except Exception as e:
+                self._set_message(f"❌ {measurement_name} failed: {e}")
+            finally:
+                self.is_measuring = False
+                self._update_measurement_button_states()
+
+        self.measurement_thread = threading.Thread(
+            target=measurement_wrapper, daemon=True
+        )
+        self.measurement_thread.start()
+
+    def _stop_measurement(self):
+        """Stop the current measurement."""
+        if self.is_measuring:
+            self.stop_event.set()
+            self._set_message("⏹️ Stopping measurement...")
+
     # Event handlers
     def _on_mode_change(self, change):
         """Handle performance mode changes."""
@@ -421,7 +555,7 @@ class InteractiveSpectroscopyApp:
             return
         ts = datetime.datetime.now().strftime("%H-%M")
         path = os.path.join(outdir, f"exp-{ts}.png")
-        # only the heatmap trace: assume it’s trace index 1
+        # only the heatmap trace: assume it's trace index 1
         fig = self.fig_widget
         try:
             fig.write_image(path, scale=2)
@@ -478,6 +612,8 @@ class InteractiveSpectroscopyApp:
                 self.fig_widget.data[2].visible = self.show_fit_toggle.value
             # enable show-fit toggle
             self.show_fit_toggle.disabled = False
+            # Update corridor measurement availability
+            self._update_corridor_measurement_state()
             self._set_message(
                 f"Ridge fitted with degree {degree} and coefficients {ridge}"
             )
@@ -510,6 +646,9 @@ class InteractiveSpectroscopyApp:
             # update placeholder to reflect empty list
             self.coord_display.value = ""
             self.coord_display.placeholder = "X-Subset Collection (0 points): []"
+        # Update button states
+        self.fit_ridge_btn.disabled = True
+        self._update_corridor_measurement_state()
 
     def _start_live_updates(self):
         """Start the live update timer."""

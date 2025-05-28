@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
 from typing import Iterable, List, Tuple
+import threading
 
 import numpy as np
 import numba as nb
@@ -405,14 +406,21 @@ def busy_sleep(sec: float) -> None:
 
 class RandomSpectroscopy(Spectroscopy):
     def run_full_scan(
-        self, sleep: float = 0.001, x_subset: Iterable[float] | None = None
+        self,
+        sleep: float = 0.001,
+        x_subset: Iterable[float] | None = None,
+        stop_event: threading.Event | None = None,
     ) -> None:
         """
         Measure every (x,y) once, or only for x in `x_subset`.
         Off-grid x's in `x_subset` are snapped to the nearest grid point.
+        Can be stopped early by setting stop_event.
         """
         xs, ys = self.next_unmeasured_points(x_subset=x_subset)
         for x, y in zip(xs, ys):
+            # Check if we should stop
+            if stop_event is not None and stop_event.is_set():
+                break
             z = np.random.random()
             self.write(x, y, z)
             busy_sleep(sleep)
@@ -423,14 +431,19 @@ class RandomSpectroscopy(Spectroscopy):
         width_frac: float = 0.2,
         sleep: float = 0.001,
         x_subset: Iterable[float] | None = None,
+        stop_event: threading.Event | None = None,
     ) -> None:
         """
         Measure only points within ±width_frac corridor around `ridge`,
         and only for x in `x_subset` if provided.
+        Can be stopped early by setting stop_event.
         """
         mask = self.corridor_mask(ridge, width_frac=width_frac)
         xs, ys = self.next_unmeasured_points(mask=mask, x_subset=x_subset)
         for x, y in zip(xs, ys):
+            # Check if we should stop
+            if stop_event is not None and stop_event.is_set():
+                break
             z = np.random.random()
             self.write(x, y, z)
             busy_sleep(sleep)

@@ -9,6 +9,7 @@ from ipywidgets import (
     Text,
     Button,
     IntText,
+    FloatText,
     Checkbox,
     ToggleButton,
     Accordion,
@@ -87,6 +88,39 @@ def create_figure():
 # --- Widget Configuration ---
 CONTROL_LAYOUT = Layout(padding="5px", align_items="flex-start")
 AUTO_WIDTH = Layout(width="auto")
+
+
+def create_measurement_controls():
+    """Create measurement operation controls."""
+    return VBox(
+        [
+            Button(description="Full Measurement", icon="play", layout=AUTO_WIDTH),
+            Button(
+                description="Corridor Measurement",
+                icon="forward",
+                layout=AUTO_WIDTH,
+                disabled=True,
+            ),
+            VBox(
+                [
+                    Label("Width", layout=AUTO_WIDTH),
+                    FloatText(value=0.2, min=0.01, max=0.5, layout=AUTO_WIDTH),
+                ],
+                layout=Layout(padding="2px"),
+            ),
+            Box(layout=Layout(height="10px")),  # small gap
+            VBox(
+                [
+                    Label("Sleep (ms)", layout=AUTO_WIDTH),
+                    IntText(value=1000, min=500, layout=AUTO_WIDTH),
+                ],
+                layout=Layout(padding="2px"),
+            ),
+            Box(layout=Layout(height="20px")),  # bigger gap
+            Button(description="Stop", icon="stop", layout=AUTO_WIDTH, disabled=True),
+        ],
+        layout=CONTROL_LAYOUT,
+    )
 
 
 def create_file_controls():
@@ -186,6 +220,7 @@ def build_interface():
     # Create controls accordion
     controls = Accordion(
         children=[
+            create_measurement_controls(),
             create_file_controls(),
             create_interaction_controls(),
             create_fit_controls(),
@@ -197,7 +232,7 @@ def build_interface():
 
     # Set accordion section titles
     for idx, title in enumerate(
-        ["File Ops", "Interaction", "Fitting", "Performance", "Settings"]
+        ["Measurement", "File Ops", "Interaction", "Fitting", "Performance", "Settings"]
     ):
         controls.set_title(idx, title)
 
