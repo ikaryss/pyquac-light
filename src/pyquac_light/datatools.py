@@ -1,3 +1,6 @@
+"Base class for data manipulation"
+
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 import time
@@ -396,11 +399,6 @@ class Spectroscopy:
             self._raw_z.clear()
 
 
-################################################################################
-#                            Busy-wait timer (optional)                        #
-################################################################################
-
-
 class RandomSpectroscopy(Spectroscopy):
     def run_full_scan(
         self,
@@ -444,3 +442,80 @@ class RandomSpectroscopy(Spectroscopy):
             z = np.random.random()
             self.write(x, y, z)
             time.sleep(sleep)
+
+
+class SkeletonSpectroscopy(Spectroscopy, ABC):
+    """
+    A Template-Method version of Spectroscopy that
+    implements run_full_scan and run_corridor_scan
+    by calling four user-supplied hooks.
+    """
+
+    @abstractmethod
+    def pre_scan(self) -> None:
+        """One-time setup before any measurements."""
+
+    @abstractmethod
+    def pre_column(self, x: float) -> None:
+        """Setup before each new x-column."""
+
+    @abstractmethod
+    def measure_point(self, x: float, y: float) -> float:
+        """
+        Do the actual acquisition for (x,y);
+        return the measured z-value.
+        """
+
+    @abstractmethod
+    def post_scan(self) -> None:
+        """Clean up after the entire scan."""
+
+    def _scan_loop(
+        self,
+        xs: np.ndarray,
+        ys: np.ndarray,
+        sleep: float,
+        stop_event: threading.Event | None,
+    ) -> None:
+        last_x = None
+        for x, y in zip(xs, ys):
+            if stop_event is not None and stop_event.is_set():
+                break
+            if x != last_x:
+                self.pre_column(x)
+                last_x = x
+            z = self.measure_point(x, y)
+            self.write(x, y, z)
+            time.sleep(sleep)
+
+    def run_full_scan(
+        self,
+        sleep: float = 0.001,
+        x_subset: Iterable[float] | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> None:
+        """
+        Default full-grid scan.  Users only need to implement the four hooks.
+        """
+        self.pre_scan()
+        xs, ys = self.next_unmeasured_points(x_subset=x_subset)
+        self._scan_loop(xs, ys, sleep, stop_event)
+        self.post_scan()
+
+    def run_corridor_scan(
+        self,
+        ridge: np.poly1d,
+        width_frac: float = 0.2,
+        sleep: float = 0.001,
+        x_subset: Iterable[float] | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> None:
+        """
+        Default corridor scan around `ridge`.  Again, all you need
+        to do is implement the four hooks.
+        """
+        self.pre_scan()
+        mask = self.corridor_mask(ridge, width_frac=width_frac)
+        xs, ys = self.next_unmeasured_points(mask=mask, x_subset=x_subset)
+        self._scan_loop(xs, ys, sleep, stop_event)
+        self.post_scan()

@@ -640,13 +640,30 @@ class InteractiveSpectroscopyApp:
         self._update_vertical_slice(self.current_x_idx)
 
     def _on_clear_all(self, button):
+        # 1) Clear the raw data
         self.spec.clear()
         self._set_message("All data cleared")
-        # also clear picks & ridge
+
+        # 2) Reset picks and fitted ridge
         self.picked_points.clear()
         self.fitted_ridge = None
         self.coord_display.value = ""
+
+        # 3) Hide the fit curve trace (trace index 2) and clear its data
+        with self.fig_widget.batch_update():
+            self.fig_widget.data[2].x = []
+            self.fig_widget.data[2].y = []
+            self.fig_widget.data[2].visible = False
+
+        # 4) Disable the “Show Fit Curve” toggle
+        self.show_fit_toggle.value = False
+        self.show_fit_toggle.disabled = True
+
+        # 5) Refresh button states
         self._update_data_mgmt_buttons()
+        self._update_corridor_measurement_state()
+
+        # 6) Redraw heatmap & slices
         self._update_heatmap()
         self._update_horizontal_slice(self.current_y_idx)
         self._update_vertical_slice(self.current_x_idx)
