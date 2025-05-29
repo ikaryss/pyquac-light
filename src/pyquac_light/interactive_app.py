@@ -116,10 +116,10 @@ class InteractiveSpectroscopyApp:
     def _extract_control_references(self):
         """Extract references to specific control widgets from the UI."""
         # The controls are in an accordion (first child of the HBox)
-        controls_accordion = self.ui_container.children[0].children[0]
+        self.controls_accordion = self.ui_container.children[0].children[0]
 
         # Measurement controls (index 0 in accordion)
-        measurement_controls = controls_accordion.children[0]
+        measurement_controls = self.controls_accordion.children[0]
         self.full_measurement_btn = measurement_controls.children[0]
         self.corridor_measurement_btn = measurement_controls.children[1]
         self.width_input = measurement_controls.children[2].children[
@@ -131,12 +131,12 @@ class InteractiveSpectroscopyApp:
         self.stop_btn = measurement_controls.children[6]
 
         # Performance controls (index 4 in accordion - was 3, +1 for measurement)
-        perf_controls = controls_accordion.children[4]
+        perf_controls = self.controls_accordion.children[4]
         self.mode_toggle = perf_controls.children[0]  # ToggleButtons "Static"/"Live"
         self.update_interval = perf_controls.children[2]  # IntText for update ms
 
         # Interaction controls (index 2 in accordion - was 1, +1 for measurement)
-        interaction_controls = controls_accordion.children[2]
+        interaction_controls = self.controls_accordion.children[2]
         self.show_crosshairs = interaction_controls.children[1]
         self.point_pick_toggle = interaction_controls.children[0]
         self.clear_selection_btn = interaction_controls.children[2]
@@ -153,7 +153,7 @@ class InteractiveSpectroscopyApp:
         self.clear_all_btn = interaction_controls.children[8]
 
         # File controls (index 1 in accordion - was 0, +1 for measurement)
-        file_controls = controls_accordion.children[1]
+        file_controls = self.controls_accordion.children[1]
         self.save_csv_btn = file_controls.children[0]  # "Save CSV"
         self.save_png_btn = file_controls.children[1]  # "Save PNG"
         self.save_svg_btn = file_controls.children[2]  # "Save SVG"
@@ -163,7 +163,7 @@ class InteractiveSpectroscopyApp:
         self.filename_example_label = file_controls.children[5]
 
         # Settings (index 5 in accordion - was 4, +1 for measurement)
-        setting_controls = controls_accordion.children[5]
+        setting_controls = self.controls_accordion.children[5]
         # X‐Label text is in the first sub‐VBox
         x_box = setting_controls.children[0]  # VBox([Label, Text])
         self.x_label_input = x_box.children[1]  # the Text widget
@@ -174,7 +174,7 @@ class InteractiveSpectroscopyApp:
         self.parent_path_input = setting_controls.children[2].children[1]
 
         # Fit controls (index 3 in accordion - was 2, +1 for measurement)
-        fit_controls = controls_accordion.children[3]
+        fit_controls = self.controls_accordion.children[3]
         self.degree_input = fit_controls.children[1]  # IntText for degree
         self.fit_ridge_btn = fit_controls.children[2]  # "Manual Fit Ridge" button
         self.auto_fit_ridge_btn = fit_controls.children[3]  # "Auto Fit Ridge" button
@@ -605,6 +605,13 @@ class InteractiveSpectroscopyApp:
         # Width input likewise only makes sense if there’s a ridge
         self.cleanup_width_input.disabled = self.fitted_ridge is None
         # Clear all always enabled (or you could only enable if spec has any data)
+
+        # put a “•” on the Interaction tab if any points are picked
+        base_title = "Interaction"
+        if self.picked_points:
+            self.controls_accordion.set_title(2, base_title + "\t•")
+        else:
+            self.controls_accordion.set_title(2, base_title)
 
     def _on_drop_points(self, button):
         if not self.picked_points:
