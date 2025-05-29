@@ -23,7 +23,7 @@ def peak_detection(
     tail_metric: str = "count",
     on_no_peaks: str = "empty",
 ) -> np.ndarray:
-    """Boolean mask of peak samples (see detailed docstring in original post)."""
+    """Boolean mask of peak samples"""
     x = np.asarray(x, dtype=float)
     med = np.median(x)
     mad = np.median(np.abs(x - med))
@@ -62,6 +62,9 @@ def _xy_to_index(
     iy = int(round((y_val - y0) / dy))
     return ix * ny + iy
 
+
+# force first‐call compile now
+_xy_to_index(0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1)
 
 ################################################################################
 #                                Main class                                    #
@@ -140,13 +143,14 @@ class Spectroscopy:
         path: str | Path,
         x_arr: np.ndarray | None = None,
         y_arr: np.ndarray | None = None,
+        has_header: bool = True,
     ) -> "Spectroscopy":
         """Create a *Spectroscopy* object and populate it from CSV.
 
         If ``x_arr`` and/or ``y_arr`` are not supplied, they are derived from
         the data file (unique values). Grid spacing is validated within tolerance.
         """
-        raw = np.loadtxt(path, delimiter=",", skiprows=1)
+        raw = np.loadtxt(path, delimiter=",", skiprows=1 if has_header else 0)
         if raw.ndim == 1:
             raw = raw.reshape(1, -1)
         x_vals, y_vals, z_vals = raw[:, 0], raw[:, 1], raw[:, 2]

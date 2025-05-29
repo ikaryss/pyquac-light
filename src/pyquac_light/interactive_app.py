@@ -1,16 +1,15 @@
+"jupyter ipywidgets+plotly app functionality"
+
 import os
-import datetime
-from pathlib import Path
-import plotly.io as pio
-import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import ipywidgets as widgets
-from ipywidgets import VBox, HBox, Layout
 import threading
 import time
+import datetime
+from pathlib import Path
+import numpy as np
+import plotly.graph_objects as go
+from ipywidgets import VBox
 
-from .datatools import Spectroscopy, RandomSpectroscopy
+from .datatools import Spectroscopy
 from .app_layout import build_interface, create_figure
 
 
@@ -406,10 +405,8 @@ class InteractiveSpectroscopyApp:
     # Measurement event handlers
     def _on_full_measurement(self, button):
         """Handle full measurement button click."""
-        if not isinstance(self.spec, RandomSpectroscopy):
-            self._set_message(
-                "❌ Full measurement requires RandomSpectroscopy instance"
-            )
+        if not isinstance(self.spec, Spectroscopy):
+            self._set_message("❌ Full measurement requires Spectroscopy instance")
             return
 
         # Get parameters
@@ -431,10 +428,8 @@ class InteractiveSpectroscopyApp:
 
     def _on_corridor_measurement(self, button):
         """Handle corridor measurement button click."""
-        if not isinstance(self.spec, RandomSpectroscopy):
-            self._set_message(
-                "❌ Corridor measurement requires RandomSpectroscopy instance"
-            )
+        if not isinstance(self.spec, Spectroscopy):
+            self._set_message("❌ Corridor measurement requires Spectroscopy instance")
             return
 
         if self.fitted_ridge is None:

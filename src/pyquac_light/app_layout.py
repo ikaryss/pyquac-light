@@ -14,6 +14,7 @@ from ipywidgets import (
     ToggleButton,
     Accordion,
     Layout,
+    HTML,
 )
 
 
@@ -117,7 +118,10 @@ def create_figure():
 
 # --- Widget Configuration ---
 CONTROL_LAYOUT = Layout(padding="5px", align_items="flex-start")
-AUTO_WIDTH = Layout(width="auto")
+AUTO_WIDTH = Layout(width="auto", margin="2px 0")
+SECTION_TITLE_STYLE = {"font_weight": "bold", "font_size": "14px"}
+SECTION_LAYOUT = Layout(margin="10px 0 5px 0")
+CONTROL_SPACING = {"padding": "3px 0"}
 
 
 def create_measurement_controls():
@@ -200,7 +204,7 @@ def create_interaction_controls():
     separator = Box(layout=Layout(height="10px"))
 
     # --- new Data Management block ---
-    dm_label = Label("Data Management", layout=Layout(font_weight="bold"))
+    dm_label = HTML("<b>Data Management</b>", layout=SECTION_LAYOUT)
     drop_btn = Button(description="Drop Picked Points", icon="trash", layout=AUTO_WIDTH)
     cleanup_btn = Button(
         description="Clean Up Corridor", icon="broom", layout=AUTO_WIDTH
@@ -292,7 +296,7 @@ def create_axis_settings():
                     Label("Save Parent Path"),
                     Text(
                         value="/home/controller/shared-data/Spectroscopy",
-                        placeholder="Absolute path, or leave empty → cwd",
+                        placeholder="Abs path, or empty for cwd",
                         layout=AUTO_WIDTH,
                     ),
                 ],
