@@ -579,7 +579,12 @@ class InteractiveSpectroscopyApp:
         path = os.path.join(outdir, fname)
         fig = self.fig_widget
         try:
-            fig.write_html(path, include_plotlyjs="cdn", full_html=True)
+            fig.write_html(
+                path,
+                include_plotlyjs="cdn",
+                full_html=True,
+                config={"displaylogo": False},
+            )
             self._set_message(f"✅ HTML saved to {path}")
         except Exception as e:
             self._set_message(f"❌ HTML save failed: {e}")
