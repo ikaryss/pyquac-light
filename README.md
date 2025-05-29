@@ -64,21 +64,24 @@ from pyquac_light import SkeletonSpectroscopy
 import numpy as np
 
 class MyDevice(SkeletonSpectroscopy):
-    def pre_scan(self):
-        # Initialize hardware
+    def pre_scan(self) -> None:
+        print(">> pre_scan: power on, init hardware")
         pass
 
-    def pre_column(self, x: float):
-        # Move to x position
+    def pre_column(self, x: float) -> None:
+        print(f">> pre_column: stepping to x = {x}")
         pass
 
     def measure_point(self, x: float, y: float) -> float:
-        # Perform measurement, return z value
-        return np.random.random()
+        # here you’d talk to your real device; for demo, return random
+        z = np.random.random()
+        print(f">> measure_point: at (x={x},y={y}) → z={z:.3f}")
+        return z
 
-    def post_scan(self):
-        # Cleanup
+    def post_scan(self) -> None:
+        print(">> post_scan: shut off hardware")
         pass
+
 
 # Use your device
 device = MyDevice(x_arr=x_arr, y_arr=y_arr)
