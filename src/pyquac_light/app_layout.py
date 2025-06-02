@@ -333,7 +333,7 @@ def create_axis_settings():
                 [
                     Label("Save Parent Path"),
                     Text(
-                        value="/home/controller/shared-data/Spectroscopy",
+                        value="/shared-data/Spectroscopy",
                         placeholder="Abs path, or empty for cwd",
                         layout=AUTO_WIDTH,
                     ),

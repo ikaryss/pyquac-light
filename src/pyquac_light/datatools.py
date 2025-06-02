@@ -519,3 +519,115 @@ class SkeletonSpectroscopy(Spectroscopy, ABC):
         xs, ys = self.next_unmeasured_points(mask=mask, x_subset=x_subset)
         self._scan_loop(xs, ys, sleep, stop_event)
         self.post_scan()
+
+
+class ColumnSkeletonSpectroscopy(Spectroscopy, ABC):
+    """
+    A Template-Method version of Spectroscopy for “column-at-once” acquisition.
+
+    Subclasses should implement:
+      • pre_scan(self) → None
+      • pre_column(self, x: float) → None
+      • measure_column(self, x: float) → 1D np.ndarray of length len(self._y_list)
+      • post_scan(self) → None
+
+    run_full_scan() will:
+      - call pre_scan()
+      - for each x-column that still has missing data:
+          • call pre_column(x)
+          • call measure_column(x) to fetch the entire z-column
+          • if stop_event was set before or after measure_column, skip writing that column
+          • otherwise write all (x, y, z) pairs and mark them as measured
+      - call post_scan()
+
+    run_corridor_scan(...) is not supported and will just print a warning.
+    """
+
+    @abstractmethod
+    def pre_scan(self) -> None:
+        """One-time setup before any measurements (e.g. power on, init hardware)."""
+
+    @abstractmethod
+    def pre_column(self, x: float) -> None:
+        """Setup before measuring an entire column at x (e.g. step device to x)."""
+
+    @abstractmethod
+    def measure_column(self, x: float) -> np.ndarray:
+        """
+        Acquire and return a full column of z-values at this x.
+        Must return a 1D array of length len(self._y_list), ordered so that
+        index i corresponds to y = self._y_list[i]. If this raises or if
+        stop_event is set during measurement, the column will be skipped.
+        """
+
+    @abstractmethod
+    def post_scan(self) -> None:
+        """Clean up after the entire scan (e.g. power off, close connections)."""
+
+    def run_full_scan(
+        self,
+        sleep: float = 0.001,
+        x_subset: Iterable[float] | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> None:
+        """
+        Acquire every “missing” (x,y) by fetching each column at once.
+
+        If `x_subset` is given, only columns nearest those x-values (in the grid) are measured.
+        If `stop_event.is_set()` becomes True before or after calling measure_column(x),
+        that column is skipped (no data is written), and scanning stops immediately.
+        """
+        # One‐time setup
+        self.pre_scan()
+
+        # Find all (x, y) still missing, possibly restricted to x_subset
+        xs_missing, _ = self.next_unmeasured_points(x_subset=x_subset)
+        if xs_missing.size == 0:
+            # Nothing to do
+            self.post_scan()
+            return
+
+        # Which unique x‐columns need measurement?  Keep them in grid order.
+        unique_x_missing = np.unique(xs_missing)
+        xs_to_scan = [
+            x_val
+            for x_val in self._x_list
+            if np.isclose(
+                unique_x_missing, x_val, rtol=self._rtol, atol=self._atol
+            ).any()
+        ]
+
+        for x in xs_to_scan:
+            # If the user set stop_event before starting this column, abort the scan
+            if stop_event is not None and stop_event.is_set():
+                break
+
+            # One‐time per‐column hookup
+            self.pre_column(x)
+
+            try:
+                # Fetch the entire column of z‐values at once
+                z_col = self.measure_column(x)
+            except Exception:
+                # If measurement failed or was aborted mid‐column, skip this column
+                # and stop the entire scan
+                break
+
+            # If stop_event was set during measure_column, skip writing and break
+            if stop_event is not None and stop_event.is_set():
+                break
+
+            # Write every (x, y[i], z_col[i]) into the grid and mark as measured
+            for i, y in enumerate(self._y_list):
+                self.write(x, y, float(z_col[i]))
+                time.sleep(sleep)
+
+        # Final cleanup
+        self.post_scan()
+
+    def run_corridor_scan(
+        self,
+        *args,
+        **kwargs,
+    ) -> None:
+        print("Corridor scan is not supported for column-at-once acquisition.")
