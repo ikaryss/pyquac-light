@@ -276,8 +276,8 @@ class InteractiveSpectroscopyApp:
             for row in self.spec.z_matrix
         ]
         with self.fig_widget.batch_update():
-            self.fig_widget.data[1].x = self.spec.x_arr
-            self.fig_widget.data[1].y = self.spec.y_arr
+            self.fig_widget.data[1].x = self.spec.x_arr.tolist()
+            self.fig_widget.data[1].y = self.spec.y_arr.tolist()
             self.fig_widget.data[1].z = z_clean
 
             # compute half-cell widths
@@ -333,8 +333,8 @@ class InteractiveSpectroscopyApp:
         valid_mask = ~np.isnan(z_slice)
 
         with self.fig_widget.batch_update():
-            self.fig_widget.data[0].x = self.spec.x_arr[valid_mask]
-            self.fig_widget.data[0].y = z_slice[valid_mask]
+            self.fig_widget.data[0].x = self.spec.x_arr[valid_mask].tolist()
+            self.fig_widget.data[0].y = z_slice[valid_mask].tolist()
 
     def _update_vertical_slice(self, x_idx: int):
         """Update the vertical slice (right panel) at given x index."""
@@ -343,8 +343,8 @@ class InteractiveSpectroscopyApp:
         valid_mask = ~np.isnan(z_slice)
 
         with self.fig_widget.batch_update():
-            self.fig_widget.data[3].x = z_slice[valid_mask]
-            self.fig_widget.data[3].y = self.spec.y_arr[valid_mask]
+            self.fig_widget.data[3].x = z_slice[valid_mask].tolist()
+            self.fig_widget.data[3].y = self.spec.y_arr[valid_mask].tolist()
 
     def _update_crosshairs(self, x_val: float, y_val: float):
         """Update crosshair lines on the main plot."""
@@ -680,8 +680,8 @@ class InteractiveSpectroscopyApp:
             x_fit = self.spec.x_arr
             y_fit = ridge(x_fit)
             with self.fig_widget.batch_update():
-                self.fig_widget.data[2].x = x_fit
-                self.fig_widget.data[2].y = y_fit
+                self.fig_widget.data[2].x = x_fit.tolist()
+                self.fig_widget.data[2].y = y_fit.tolist()
                 self.fig_widget.data[2].visible = self.show_fit_toggle.value
             # enable show-fit toggle
             self.show_fit_toggle.disabled = False
@@ -712,8 +712,8 @@ class InteractiveSpectroscopyApp:
             x_fit = self.spec.x_arr
             y_fit = ridge(x_fit)
             with self.fig_widget.batch_update():
-                self.fig_widget.data[2].x = x_fit
-                self.fig_widget.data[2].y = y_fit
+                self.fig_widget.data[2].x = x_fit.tolist()
+                self.fig_widget.data[2].y = y_fit.tolist()
                 self.fig_widget.data[2].visible = self.show_fit_toggle.value
 
             # enable show-fit toggle
