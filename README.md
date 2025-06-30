@@ -148,7 +148,7 @@ device.run_full_scan(sleep=0.1)
 2. When measuring full column at time
 
 ```python
-from pyquac_light import SkeletonSpectroscopy
+from pyquac_light import ColumnSkeletonSpectroscopy
 import numpy as np
 
 class MyDevice(ColumnSkeletonSpectroscopy):
