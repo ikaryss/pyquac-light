@@ -46,16 +46,64 @@ spec.save_csv('output.csv')
 ### Interactive visualization
 
 ```python
-from pyquac_light import InteractiveSpectroscopyApp
+from pyquac_light import InteractiveSpectroscopyApp, launch_app
 
+# Basic usage
 app = InteractiveSpectroscopyApp(spec)
 widget = app.get_widget()
+widget  # Display in Jupyter
+
+# Or use the convenience function
+widget = launch_app(spec)
 widget  # Display in Jupyter
 
 # Access picked points and fitted ridge
 picked_points = app.picked_points  # List of (x, y) tuples
 fitted_ridge = app.fitted_ridge    # np.poly1d object or None
 ```
+
+### Customizing default settings
+
+You can customize the default settings for the interactive app using the `default_settings` parameter:
+
+```python
+# Custom settings for a frequency sweep experiment
+frequency_settings = {
+    'x_label': 'Frequency (GHz)',
+    'y_label': 'Power (dBm)',
+    'z_label': 'S21 Magnitude (dB)',
+    'save_parent_path': './frequency_data',
+    'update_interval_ms': 500,
+    'corridor_width': 0.15,
+    'polynomial_degree': 3
+}
+
+app = launch_app(spec, default_settings=frequency_settings)
+
+# Partial settings (other values use built-in defaults)
+partial_settings = {
+    'x_label': 'Time (μs)',
+    'z_label': 'Voltage (V)',
+    'sleep_ms': 200
+}
+
+app = launch_app(spec, default_settings=partial_settings)
+```
+
+#### Available settings
+
+| Setting              | Type  | Default                       | Description                                 |
+| -------------------- | ----- | ----------------------------- | ------------------------------------------- |
+| `x_label`            | str   | `"X Axis"`                    | X-axis label for main plot                  |
+| `y_label`            | str   | `"Y Axis"`                    | Y-axis label for main plot                  |
+| `z_label`            | str   | `"Intensity"`                 | Z-axis label for slice plots                |
+| `save_parent_path`   | str   | `"/shared-data/Spectroscopy"` | Default save directory                      |
+| `update_interval_ms` | int   | `1000`                        | Live update interval in milliseconds        |
+| `corridor_width`     | float | `0.2`                         | Default corridor width fraction             |
+| `sleep_ms`           | int   | `50`                          | Sleep time between measurements in ms       |
+| `polynomial_degree`  | int   | `2`                           | Default polynomial degree for ridge fitting |
+
+**Note:** All settings can still be modified temporarily through the UI during runtime. The `default_settings` parameter only sets the initial values when the app starts.
 
 ### Custom measurements
 
