@@ -1,8 +1,10 @@
 version = 1
 requires-python = ">=3.10"
 resolution-markers = [
-    "python_full_version >= '3.11'",
-    "python_full_version < '3.11'",
+    "python_full_version >= '3.11' and os_name == 'nt'",
+    "python_full_version >= '3.11' and os_name != 'nt'",
+    "python_full_version < '3.11' and os_name == 'nt'",
+    "python_full_version < '3.11' and os_name != 'nt'",
 ]
 
 [[package]]
@@ -556,7 +558,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "os_name != 'nt' and platform_system == 'Darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython", version = "8.36.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -581,7 +583,8 @@ name = "ipython"
 version = "8.36.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.11'",
+    "python_full_version < '3.11' and os_name == 'nt'",
+    "python_full_version < '3.11' and os_name != 'nt'",
 ]
 dependencies = [
     { name = "colorama", marker = "python_full_version < '3.11' and sys_platform == 'win32'" },
@@ -606,7 +609,8 @@ name = "ipython"
 version = "9.2.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.11'",
+    "python_full_version >= '3.11' and os_name == 'nt'",
+    "python_full_version >= '3.11' and os_name != 'nt'",
 ]
 dependencies = [
     { name = "colorama", marker = "python_full_version >= '3.11' and sys_platform == 'win32'" },
@@ -917,12 +921,27 @@ wheels = [
 name = "kaleido"
 version = "0.1.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.11' and os_name != 'nt'",
+    "python_full_version < '3.11' and os_name != 'nt'",
+]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/22/f1/8069e549e88b74e28337acb8f5062f90da76734f81222a848be1f960de64/kaleido-0.1.0-py2.py3-none-macosx_10_10_x86_64.whl", hash = "sha256:6a73cd4a69609490f7e13e43e77724d254aef28b062babad120b32e6f32968c2", size = 69489943 },
     { url = "https://files.pythonhosted.org/packages/83/39/1c960a971f8d27e6aa4f1462dc048275c98bbb46f16871269ba941bb4a04/kaleido-0.1.0-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:8d0403b1eb21080e09d6d728c1ea7170fd4763c415fe89dfea6edf35ec36f8e7", size = 74638312 },
     { url = "https://files.pythonhosted.org/packages/88/50/f3750870a1a0cb2f404d0ab20dc70be969438732346269f263776cc5d810/kaleido-0.1.0-py2.py3-none-manylinux2014_aarch64.whl", hash = "sha256:f3de8e08764115f529351208d689ff80523aa1e9fc0018d342af857f94e3b44e", size = 77506746 },
-    { url = "https://files.pythonhosted.org/packages/be/14/1e261ed51fba419ae987bd6726d9114077d5200d1e2b9c67cca66ca73293/kaleido-0.1.0-py2.py3-none-win32.whl", hash = "sha256:c583ed02b2c50a17e11ee3faec76f7d5f9898f8915f8877b583c5f83d0094e91", size = 53233667 },
-    { url = "https://files.pythonhosted.org/packages/6f/4e/7ea7a4f7f2cb76d7d7fdac129bcb3fa051d02a538ecf6a05d69d0cf155bb/kaleido-0.1.0-py2.py3-none-win_amd64.whl", hash = "sha256:949e3fc01c56cdca0226e866277cfb5e1b4bf66b5d4045ca43a3211f61bc8446", size = 55954594 },
+]
+
+[[package]]
+name = "kaleido"
+version = "0.1.0.post1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.11' and os_name == 'nt'",
+    "python_full_version < '3.11' and os_name == 'nt'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1e/82/153cdbaf2df0ad39198108063be111b105c46d60e9d0335e668d6af69a6b/kaleido-0.1.0.post1-py2.py3-none-win32.whl", hash = "sha256:636aedcd89f359f54687b4fe331776a7224f7c31c27d03230e4e13c7cf4cb66a", size = 53233834 },
+    { url = "https://files.pythonhosted.org/packages/41/90/51523adbedc808e03271c7448fd71da1660cc02603eaaf10b9ab4f102146/kaleido-0.1.0.post1-py2.py3-none-win_amd64.whl", hash = "sha256:2a942606a13c70dfd0a02e092ec140a1083e093ae06661c5e1b1179e477a9e44", size = 55954763 },
 ]
 
 [[package]]
@@ -1603,7 +1622,8 @@ source = { editable = "." }
 dependencies = [
     { name = "anywidget" },
     { name = "ipywidgets" },
-    { name = "kaleido" },
+    { name = "kaleido", version = "0.1.0", source = { registry = "https://pypi.org/simple" }, marker = "os_name != 'nt'" },
+    { name = "kaleido", version = "0.1.0.post1", source = { registry = "https://pypi.org/simple" }, marker = "os_name == 'nt'" },
     { name = "matplotlib" },
     { name = "notebook" },
     { name = "numba" },
@@ -1615,7 +1635,8 @@ dependencies = [
 requires-dist = [
     { name = "anywidget", specifier = ">=0.9.18" },
     { name = "ipywidgets", specifier = ">=8.1.7" },
-    { name = "kaleido", specifier = "==0.1.0" },
+    { name = "kaleido", marker = "os_name != 'nt'", specifier = "==0.1.0" },
+    { name = "kaleido", marker = "os_name == 'nt'", specifier = "==0.1.0.post1" },
     { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "notebook", specifier = ">=7.4.4" },
     { name = "numba", specifier = ">=0.61.2" },

@@ -107,11 +107,20 @@ app = launch_app(spec, default_settings=partial_settings)
 
 ### Custom measurements
 
+1. When measuring each point separately:
+
 ```python
 from pyquac_light import SkeletonSpectroscopy
 import numpy as np
 
 class MyDevice(SkeletonSpectroscopy):
+    def __init__(
+        self,
+        x_arr: np.ndarray,
+        y_arr: np.ndarray,
+    ):
+        super().__init__(x_arr=x_arr, y_arr=y_arr)
+
     def pre_scan(self) -> None:
         print(">> pre_scan: power on, init hardware")
         pass
@@ -125,6 +134,42 @@ class MyDevice(SkeletonSpectroscopy):
         z = np.random.random()
         print(f">> measure_point: at (x={x},y={y}) → z={z:.3f}")
         return z
+
+    def post_scan(self) -> None:
+        print(">> post_scan: shut off hardware")
+        pass
+
+
+# Use your device
+device = MyDevice(x_arr=x_arr, y_arr=y_arr)
+device.run_full_scan(sleep=0.1)
+```
+
+2. When measuring full column at time
+
+```python
+from pyquac_light import SkeletonSpectroscopy
+import numpy as np
+
+class MyDevice(ColumnSkeletonSpectroscopy):
+    def __init__(
+        self,
+        x_arr: np.ndarray,
+        y_arr: np.ndarray,
+    ):
+        super().__init__(x_arr=x_arr, y_arr=y_arr)
+
+    def pre_scan(self) -> None:
+        print(">> pre_scan: power on, init hardware")
+
+    def pre_column(self, x: float) -> None:
+        print(f">> pre_column: stepping to x = {x}")
+
+    def measure_column(self, x: float) -> np.ndarray:
+        # here you’d talk to your real device; for demo, return random
+        z_arr = np.random.random(len(self.y_arr))
+        print(f">> measure_column: at x={x} → z={z_arr}")
+        return z_arr
 
     def post_scan(self) -> None:
         print(">> post_scan: shut off hardware")

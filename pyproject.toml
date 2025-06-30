@@ -13,9 +13,10 @@ dependencies = [
     "numpy<2.0.0",
     "plotly>=6.1.1",
     "ipywidgets>=8.1.7",
-    "kaleido==0.1.0",
     "anywidget>=0.9.18",
     "notebook>=7.4.4",
+    "kaleido==0.1.0.post1 ; os_name == 'nt'",
+    "kaleido==0.1.0 ; os_name != 'nt'",
 ]
 
 [build-system]
