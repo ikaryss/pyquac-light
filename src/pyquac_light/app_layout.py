@@ -131,8 +131,8 @@ def create_figure():
     fig.update_yaxes(title_text="Y Axis", row=2, col=1)
     fig.update_xaxes(showticklabels=False, row=1, col=1)
     fig.update_yaxes(showticklabels=False, row=2, col=2)
-    fig.update_yaxes(title_text="Mag, dB", row=1, col=1)
-    fig.update_xaxes(title_text="Mag, dB", row=2, col=2)
+    fig.update_yaxes(title_text="Intensity", row=1, col=1)
+    fig.update_xaxes(title_text="Intensity", row=2, col=2)
 
     # Turn off all trace legends by default
     fig.update_traces(showlegend=False)
@@ -327,6 +327,10 @@ def create_axis_settings():
             ),
             VBox(
                 [Label("Y Label"), Text(value="Y Axis", layout=AUTO_WIDTH)],
+                layout=CONTROL_LAYOUT,
+            ),
+            VBox(
+                [Label("Z Label"), Text(value="Intensity", layout=AUTO_WIDTH)],
                 layout=CONTROL_LAYOUT,
             ),
             VBox(

@@ -16,14 +16,44 @@ from .app_layout import build_interface, create_figure
 class InteractiveSpectroscopyApp:
     """Interactive spectroscopy application with live data visualization."""
 
-    def __init__(self, spec: Spectroscopy):
+    # Default settings for the application
+    DEFAULT_SETTINGS = {
+        "x_label": "X Axis",
+        "y_label": "Y Axis",
+        "z_label": "Intensity",
+        "save_parent_path": "/shared-data/Spectroscopy",
+        "update_interval_ms": 1000,
+        "corridor_width": 0.2,
+        "sleep_ms": 50,
+        "polynomial_degree": 2,
+    }
+
+    def __init__(self, spec: Spectroscopy, default_settings: dict | None = None):
         """
         Initialize the interactive app.
 
         Args:
             spec: Spectroscopy instance with data to visualize and analyze.
+            default_settings: Optional dictionary with default settings for the app.
+                Available keys:
+                - 'x_label' (str): Default X-axis label, default: 'X Axis'
+                - 'y_label' (str): Default Y-axis label, default: 'Y Axis'
+                - 'z_label' (str): Default Z-axis label for slice plots, default: 'Intensity'
+                - 'save_parent_path' (str): Default save directory path, default: '/shared-data/Spectroscopy'
+                - 'update_interval_ms' (int): Default live update interval in milliseconds, default: 1000
+                - 'corridor_width' (float): Default corridor width fraction, default: 0.2
+                - 'sleep_ms' (int): Default sleep time between measurements in milliseconds, default: 50
+                - 'polynomial_degree' (int): Default polynomial degree for ridge fitting, default: 2
+
+                If only some keys are provided, the remaining settings will use built-in defaults.
+                All settings can still be modified temporarily through the UI.
         """
         self.spec = spec
+
+        # Merge user settings with defaults (partial dict support)
+        self.settings = self.DEFAULT_SETTINGS.copy()
+        if default_settings:
+            self.settings.update(default_settings)
         self.current_x_idx = 0
         self.current_y_idx = 0
         self.timer = None
@@ -64,8 +94,32 @@ class InteractiveSpectroscopyApp:
         # Set up event handlers
         self._setup_event_handlers()
 
+        # Apply default settings to widgets
+        self._apply_default_settings()
+
         # Initialize display
         self._initialize_display()
+
+    def _apply_default_settings(self):
+        """Apply the default settings to the UI widgets."""
+        # Apply axis labels
+        self.x_label_input.value = self.settings["x_label"]
+        self.y_label_input.value = self.settings["y_label"]
+        self.z_label_input.value = self.settings["z_label"]
+
+        # Apply save path
+        self.parent_path_input.value = self.settings["save_parent_path"]
+
+        # Apply measurement settings
+        self.width_input.value = self.settings["corridor_width"]
+        self.cleanup_width_input.value = self.settings["corridor_width"]
+        self.sleep_input.value = self.settings["sleep_ms"]
+
+        # Apply performance settings
+        self.update_interval.value = self.settings["update_interval_ms"]
+
+        # Apply fitting settings
+        self.degree_input.value = self.settings["polynomial_degree"]
 
     def _set_message(self, msg: str):
         """Show a status message (overwriting any previous)."""
@@ -170,8 +224,11 @@ class InteractiveSpectroscopyApp:
         # Y‐Label text is in the second sub‐VBox
         y_box = setting_controls.children[1]
         self.y_label_input = y_box.children[1]
-        # Parent‐path remains the third
-        self.parent_path_input = setting_controls.children[2].children[1]
+        # Z‐Label text is in the third sub‐VBox
+        z_box = setting_controls.children[2]
+        self.z_label_input = z_box.children[1]
+        # Parent‐path is now the fourth
+        self.parent_path_input = setting_controls.children[3].children[1]
 
         # Fit controls (index 3 in accordion - was 2, +1 for measurement)
         fit_controls = self.controls_accordion.children[3]
@@ -219,6 +276,7 @@ class InteractiveSpectroscopyApp:
         # Axis‐label controls
         self.x_label_input.observe(self._on_x_label_change, names="value")
         self.y_label_input.observe(self._on_y_label_change, names="value")
+        self.z_label_input.observe(self._on_z_label_change, names="value")
 
         # Click interactions on the main heatmap
         self._setup_click_interactions()
@@ -279,6 +337,15 @@ class InteractiveSpectroscopyApp:
             self.fig_widget.data[1].x = self.spec.x_arr.tolist()
             self.fig_widget.data[1].y = self.spec.y_arr.tolist()
             self.fig_widget.data[1].z = z_clean
+
+            # Apply default axis labels and colorbar title
+            self.fig_widget.update_xaxes(
+                title_text=self.settings["x_label"], row=2, col=1
+            )
+            self.fig_widget.update_yaxes(
+                title_text=self.settings["y_label"], row=2, col=1
+            )
+            # self.fig_widget.data[1].colorbar.title = self.settings["z_label"]
 
             # compute half-cell widths
             dx = float(self.spec.x_arr[1] - self.spec.x_arr[0])
@@ -778,6 +845,15 @@ class InteractiveSpectroscopyApp:
         with self.fig_widget.batch_update():
             self.fig_widget.update_yaxes(title_text=new, row=2, col=1)
 
+    def _on_z_label_change(self, change):
+        new = change["new"]
+        # update the slice plot labels (Z represents the values in the slices)
+        with self.fig_widget.batch_update():
+            # Horizontal slice Y-axis (row 1, col 1)
+            self.fig_widget.update_yaxes(title_text=new, row=1, col=1)
+            # Vertical slice X-axis (row 2, col 2)
+            self.fig_widget.update_xaxes(title_text=new, row=2, col=2)
+
     def _start_live_updates(self):
         """Start the live update timer."""
         if self.update_running:
@@ -809,15 +885,17 @@ class InteractiveSpectroscopyApp:
         return self.ui_container
 
 
-def launch_app(spec: Spectroscopy) -> VBox:
+def launch_app(spec: Spectroscopy, default_settings: dict | None = None) -> VBox:
     """
     Launch the interactive spectroscopy application.
 
     Args:
         spec: Spectroscopy instance with data to visualize and analyze.
+        default_settings: Optional dictionary with default settings for the app.
+            See InteractiveSpectroscopyApp.__init__ for available keys.
 
     Returns:
         VBox widget ready for display in notebook
     """
-    app = InteractiveSpectroscopyApp(spec)
+    app = InteractiveSpectroscopyApp(spec, default_settings)
     return app.get_widget()
